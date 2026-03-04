@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🍽️ 쟁반 균형 게임</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Gaegu:wght@700&family=Noto+Sans+KR:wght@400;700&display=swap');
+
+* { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --bg:#1a1208; --accent:#F4A535; --red:#E84040; --green:#40C870;
+  --muted:rgba(255,200,100,0.4);
+}
+html,body { height:100%; }
+body {
+  background:var(--bg); min-height:100vh;
+  display:flex; flex-direction:column; align-items:center;
+  font-family:'Noto Sans KR',sans-serif;
+  overflow-x:hidden; padding:16px 16px 28px;
+  position:relative; user-select:none;
+}
+body::before {
+  content:''; position:fixed; inset:0; pointer-events:none;
+  background:
+    repeating-linear-gradient(92deg,transparent 0,transparent 60px,rgba(255,255,255,0.012) 60px,rgba(255,255,255,0.012) 62px),
+    linear-gradient(180deg,#1a1208,#2a1f0e 50%,#1a1208);
+}
+
+.game-wrap {
+  width:100%; max-width:900px;
+  display:flex; flex-direction:column; align-items:center;
+  position:relative; z-index:1;
+  padding-bottom:100px;
+}
+
+h1 { font-family:'Gaegu',cursive; font-size:clamp(1.4rem,3vw,2.2rem); color:var(--accent); text-shadow:0 2px 8px rgba(0,0,0,.5); margin-bottom:.1rem; }
+.subtitle { font-size:clamp(.55rem,.9vw,.7rem); color:var(--muted); letter-spacing:.2em; text-transform:uppercase; margin-bottom:.8rem; }
+
+/* HUD */
+.hud { display:flex; gap:clamp(1rem,3vw,3rem); margin-bottom:.6rem; }
+.hud-item { text-align:center; }
+.hud-label { font-size:.5rem; color:var(--muted); letter-spacing:.2em; text-transform:uppercase; }
+.hud-value { font-family:'Gaegu',cursive; font-size:clamp(1.3rem,2.5vw,2rem); color:var(--accent); line-height:1; }
+.hud-value.danger { color:var(--red); animation:pulse .4s ease infinite alternate; }
+@keyframes pulse { from{opacity:1} to{opacity:.35} }
+
+/* 바 */
+.bars { display:flex; flex-direction:column; gap:5px; width:min(320px,80vw); margin-bottom:.8rem; }
+.bar-row { display:flex; align-items:center; gap:8px; }
+.bar-lbl { font-size:.5rem; color:var(--muted); letter-spacing:.15em; text-transform:uppercase; width:36px; text-align:right; flex-shrink:0; }
+.bar-track { flex:1; height:6px; background:rgba(255,255,255,.07); border-radius:3px; position:relative; overflow:visible; }
+.bar-fill { position:absolute; top:0; height:100%; border-radius:3px; transition:all .1s; }
+.bar-center { position:absolute; left:50%; top:-3px; width:2px; height:12px; background:rgba(255,255,255,.18); transform:translateX(-50%); }
+.bar-needle { position:absolute; top:-5px; width:14px; height:14px; border-radius:50%; border:2px solid #fff; transform:translateX(-50%); transition:left .12s ease; }
+.danger-track { flex:1; height:7px; background:rgba(255,255,255,.07); border-radius:4px; overflow:hidden; }
+.danger-fill { height:100%; border-radius:4px; transition:width .2s,background .2s; }
+
+/* 레이아웃 - 항상 1열 (세로 배치) */
+.main-area { display:flex; flex-direction:column; align-items:center; gap:16px; width:100%; }
+
+/* ── 씬 & 쟁반 ── */
+.scene-wrap { perspective:1000px; position:relative; flex-shrink:0; width:100%; }
+
+/* 씬 크기 - 쟁반이 기울어도 잘리지 않도록 여유 있게 */
+.scene {
+  width: 100%;
+  aspect-ratio: 560 / 420;
+  position:relative; transform-style:preserve-3d;
+}
+
+/* tray-group 은 씬 안에서 중앙에 배치, transform-origin을 쟁반 중심으로 */
+.tray-group {
+  position:absolute; inset:0;
+  transform-style:preserve-3d;
+  transition:transform .1s ease-out;
+  transform-origin:50% 42%;
+  z-index:1;
+}
+
+/* 쟁반 전체를 SVG로 그림 */
+#traySvg {
+  position:absolute; inset:0; width:100%; height:100%;
+  overflow:visible; /* 기울어도 잘리지 않게 */
+}
+
+/* 이모지 캔버스 - 씬과 동일 크기, JS에서 쟁반 타원 좌표계 사용 */
+#emojiCanvas {
+  position:absolute; inset:0; width:100%; height:100%;
+  pointer-events:none;
+}
+
+/* 드롭존 - 쟁반 타원 영역만 clipPath로 처리는 JS에서 */
+#dropZone {
+  position:absolute; inset:0;
+  z-index:10; cursor:default;
+}
+#dropZone.drag-over #dropZoneHighlight { opacity:1; }
+
+/* 게임오버 전체화면 */
+#gameoverOverlay {
+  position:fixed; inset:0; z-index:9000;
+  display:none; flex-direction:column; align-items:center; justify-content:center;
+  gap:.7rem; background:rgba(8,4,0,.96); backdrop-filter:blur(12px);
+}
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+#gameoverOverlay.show { display:flex; animation:fadeIn .5s ease; }
+.go-emoji { font-size:clamp(2.5rem,6vw,4rem); }
+.go-title { font-family:'Gaegu',cursive; font-size:clamp(1.8rem,5vw,3rem); color:var(--accent); }
+.go-sub { font-size:clamp(.75rem,1.5vw,.95rem); color:var(--muted); }
+.go-emojis { font-size:clamp(1.2rem,2.5vw,1.6rem); max-width:min(500px,80vw); text-align:center; word-break:break-all; line-height:1.6; margin:.2rem 0; }
+.go-scores { display:flex; gap:2rem; margin:.2rem 0; }
+.go-score-item { text-align:center; }
+.go-score-label { font-size:.55rem; color:var(--muted); letter-spacing:.15em; text-transform:uppercase; }
+.go-score-val { font-family:'Gaegu',cursive; font-size:clamp(1.4rem,3vw,2rem); color:var(--accent); }
+
+/* 시작 오버레이 */
+.start-overlay {
+  position:absolute; inset:0;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  background:rgba(15,8,2,.93); border-radius:16px; gap:.5rem;
+  backdrop-filter:blur(6px); z-index:30;
+}
+.start-overlay-emoji { font-size:2.5rem; }
+.start-overlay-title { font-family:'Gaegu',cursive; font-size:clamp(1.2rem,2.5vw,1.8rem); color:var(--accent); }
+.start-overlay-sub { font-size:clamp(.65rem,1.2vw,.8rem); color:var(--muted); text-align:center; padding:0 1rem; }
+
+.btn {
+  margin-top:.4rem; padding:.6rem 2rem; background:var(--accent); color:#1a1208;
+  border:none; border-radius:8px; font-family:'Gaegu',cursive; font-size:clamp(.95rem,1.8vw,1.2rem);
+  cursor:pointer; transition:transform .1s,opacity .1s; box-shadow:0 4px 20px rgba(244,165,53,.45);
+}
+.btn:hover { opacity:.9; transform:scale(1.04); }
+.btn:active { transform:scale(.97); }
+
+/* 창고 */
+.floor-wrap { max-width:500px; min-width:200px; width:100%; margin-top:-100px;}
+.floor-label { font-size:.55rem; color:var(--muted); letter-spacing:.18em; text-transform:uppercase; text-align:center; margin-bottom:8px; }
+.floor-shelf {
+  background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07);
+  border-radius:14px; padding:10px 12px;
+  display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-start; min-height:80px;
+}
+.e-chip {
+  font-size:clamp(1.4rem,2.5vw,1.8rem); line-height:1; cursor:grab;
+  padding:4px 6px; border-radius:9px;
+  background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1);
+  transition:transform .12s,background .12s,opacity .12s;
+  position:relative; flex-shrink:0;
+}
+.e-chip:hover { background:rgba(255,200,80,.15); transform:scale(1.14); }
+.e-chip.dragging { opacity:.3; transform:scale(.88); }
+.e-chip.giant { font-size:clamp(2rem,3.5vw,2.6rem); background:rgba(232,64,64,.12); border-color:rgba(232,64,64,.35); }
+
+/* 드래그 고스트 */
+#dragGhost {
+  position:fixed; pointer-events:none; z-index:9999;
+  transform:translate(-50%,-60%); display:none;
+  filter:drop-shadow(0 6px 14px rgba(244,165,53,.8));
+}
+
+/* 떨어지는 이모지 (게임오버) */
+.falling-emoji {
+  position:fixed; pointer-events:none; z-index:9500;
+  transform-origin:center center;
+}
+</style>
+</head>
+<body>
+<div class="game-wrap">
+
+  <h1>🍽️ 쟁반 균형 게임</h1>
+  <p class="subtitle">드래그해서 쟁반에 올려라 · 쏟으면 끝</p>
+
+  <div class="hud">
+    <div class="hud-item"><div class="hud-label">올린 수</div><div class="hud-value" id="countVal">0</div></div>
+    <div class="hud-item"><div class="hud-label">위험도</div><div class="hud-value" id="dangerVal">0%</div></div>
+    <div class="hud-item"><div class="hud-label">최고</div><div class="hud-value" style="color:#999" id="bestVal">0</div></div>
+  </div>
+
+  <div class="bars">
+    <div class="bar-row">
+      <div class="bar-lbl">균형</div>
+      <div class="bar-track">
+        <div class="bar-fill" id="tiltFill"></div>
+        <div class="bar-center"></div>
+        <div class="bar-needle" id="tiltNeedle"></div>
+      </div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-lbl">위험</div>
+      <div class="danger-track"><div class="danger-fill" id="dangerFill"></div></div>
+    </div>
+  </div>
+
+  <div class="main-area">
+    <div class="scene-wrap">
+      <div class="scene" id="scene">
+        <!-- 받침대 SVG (고정, 기울어지지 않음) -->
+        <svg id="standSvg" viewBox="0 0 560 420" xmlns="http://www.w3.org/2000/svg"
+          style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;transform:translateZ(-10px);">
+          <defs>
+            <linearGradient id="standGrad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#5C3A1E"/>
+              <stop offset="50%" stop-color="#9B6E4C"/>
+              <stop offset="100%" stop-color="#5C3A1E"/>
+            </linearGradient>
+            <linearGradient id="baseGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#8B5E3C"/>
+              <stop offset="100%" stop-color="#4a2a10"/>
+            </linearGradient>
+            <filter id="blur"><feGaussianBlur stdDeviation="8"/></filter>
+          </defs>
+          <!-- 그림자 -->
+          <ellipse cx="280" cy="310" rx="195" ry="22" fill="rgba(0,0,0,0.45)" filter="url(#blur)"/>
+          <!-- 받침대 기둥 -->
+          <rect x="271" y="272" width="18" height="80" rx="5" fill="url(#standGrad)"/>
+          <!-- 받침대 바닥 -->
+          <ellipse cx="280" cy="354" rx="55" ry="12" fill="url(#baseGrad)"/>
+        </svg>
+
+        <!-- 쟁반 + 이모지 (기울어지는 그룹) -->
+        <div class="tray-group" id="trayGroup">
+
+          <svg id="traySvg" viewBox="0 0 560 420" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <radialGradient id="trayGrad" cx="42%" cy="38%" r="60%">
+                <stop offset="0%"   stop-color="#ddb870"/>
+                <stop offset="45%"  stop-color="#b07840"/>
+                <stop offset="100%" stop-color="#7a4e28"/>
+              </radialGradient>
+              <radialGradient id="rimGrad" cx="50%" cy="30%" r="70%">
+                <stop offset="0%" stop-color="#8a5025"/>
+                <stop offset="100%" stop-color="#3a1808"/>
+              </radialGradient>
+              <pattern id="woodGrain" x="0" y="0" width="30" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(12)">
+                <rect width="30" height="4" fill="none"/>
+                <line x1="0" y1="2" x2="30" y2="2" stroke="rgba(255,255,255,0.035)" stroke-width="1.5"/>
+              </pattern>
+              <clipPath id="trayClip">
+                <ellipse cx="280" cy="172" rx="228" ry="108"/>
+              </clipPath>
+            </defs>
+
+            <!-- 쟁반 테두리 -->
+            <ellipse cx="280" cy="176" rx="234" ry="114"
+              fill="url(#rimGrad)"
+              style="filter:drop-shadow(0 10px 24px rgba(0,0,0,0.7))"/>
+
+            <!-- 쟁반 표면 -->
+            <ellipse cx="280" cy="172" rx="228" ry="108" fill="url(#trayGrad)"/>
+
+            <!-- 나뭇결 -->
+            <ellipse cx="280" cy="172" rx="228" ry="108" fill="url(#woodGrain)" clip-path="url(#trayClip)"/>
+
+            <!-- 안쪽 테두리 링 -->
+            <ellipse cx="280" cy="172" rx="210" ry="92" fill="none"
+              stroke="rgba(255,255,255,0.1)" stroke-width="2"/>
+            <ellipse cx="280" cy="172" rx="185" ry="80" fill="none"
+              stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+
+            <!-- 하이라이트 -->
+            <ellipse cx="220" cy="138" rx="90" ry="32"
+              fill="rgba(255,255,255,0.07)" transform="rotate(-10,220,138)"/>
+
+            <!-- 드롭존 하이라이트 -->
+            <ellipse id="dropHighlight" cx="280" cy="172" rx="228" ry="108"
+              fill="none" stroke="rgba(244,165,53,0)" stroke-width="4" opacity="0"
+              style="transition:opacity .15s"/>
+          </svg>
+
+          <!-- 이모지 캔버스 -->
+          <canvas id="emojiCanvas"></canvas>
+
+          <!-- 드롭존 -->
+          <div id="dropZone"></div>
+
+        </div><!-- /tray-group -->
+
+        <!-- 시작 오버레이 -->
+        <div class="start-overlay" id="startOverlay">
+          <div class="start-overlay-emoji">🍽️</div>
+          <div class="start-overlay-title">쟁반 균형 게임</div>
+          <div class="start-overlay-sub">창고의 이모지를 드래그해서 쟁반에 올리세요</div>
+          <div class="start-overlay-sub" style="color:rgba(255,150,100,.6)">무게가 쏠리면 쟁반이 뒤집혀요!</div>
+          <button class="btn" id="startBtn">게임 시작</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 창고 -->
+    <div class="floor-wrap">
+      <div class="floor-label">📦 이모지 창고 — 드래그해서 쟁반에</div>
+      <div class="floor-shelf" id="floorShelf"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 게임오버 전체화면 -->
+<div id="gameoverOverlay">
+  <div class="go-emoji">💥</div>
+  <div class="go-title">쏟아졌다!</div>
+  <div class="go-scores">
+    <div class="go-score-item"><div class="go-score-label">올린 수</div><div class="go-score-val" id="goCount">0</div></div>
+    <div class="go-score-item"><div class="go-score-label">최고기록</div><div class="go-score-val" id="goBest">0</div></div>
+  </div>
+  <div class="go-emojis" id="goEmojis"></div>
+  <button class="btn" id="retryBtn">다시 도전 🔄</button>
+</div>
+
+<div id="dragGhost"></div>
+
+<script>
+// ── 이모지 데이터 ──────────────────────────────────────
+const EMOJI_DATA = [
+  {e:'🍎',w:1.0},{e:'🍊',w:0.9},{e:'🍋',w:0.8},{e:'🍇',w:1.2},
+  {e:'🍓',w:0.5},{e:'🍑',w:0.9},{e:'🥝',w:0.6},{e:'🍒',w:0.4},
+  {e:'🥭',w:1.4},{e:'🍍',w:2.0},{e:'🌮',w:1.1},{e:'🍕',w:1.5},
+  {e:'🍔',w:1.8},{e:'🍣',w:0.8},{e:'🍜',w:1.3},{e:'🍩',w:1.0},
+  {e:'🍪',w:0.7},{e:'🎂',w:3.0},{e:'🍦',w:0.6},{e:'🧁',w:0.8},
+  {e:'⚽',w:1.5},{e:'🏀',w:1.4},{e:'🎸',w:2.5},{e:'🎯',w:1.0},
+  {e:'🎲',w:0.8},{e:'💎',w:3.5},{e:'🌸',w:0.2},{e:'🦋',w:0.1},
+  {e:'🌈',w:0.1},{e:'⭐',w:0.3},{e:'🦊',w:2.0},{e:'🐸',w:1.2},
+  {e:'🐧',w:1.8},{e:'🦁',w:4.0},{e:'🐳',w:5.0},{e:'🦄',w:2.5},
+  {e:'🚀',w:3.5},{e:'🛸',w:3.0},{e:'💫',w:0.2},{e:'🔥',w:0.5},
+  {e:'👑',w:2.0},{e:'🎁',w:1.5},{e:'🏆',w:3.0},{e:'🪄',w:1.0},
+  {e:'🌵',w:0.8},{e:'🍄',w:0.6},{e:'🧲',w:2.2},{e:'🧸',w:1.3},
+];
+const GIANT_EMOJI = [
+  {e:'🐘',w:15},{e:'🦛',w:15},{e:'🗿',w:15},{e:'⚓',w:15},
+  {e:'🧱',w:15},{e:'🛢️',w:15},{e:'🪨',w:15},{e:'🏋️',w:15},
+];
+
+// ── 쟁반 SVG 좌표계 상수 ───────────────────────────────
+// SVG viewBox: 560×420
+// 쟁반 타원 중심: (280, 172), rx=228, ry=108
+const SVG_W = 560, SVG_H = 420;
+const TRAY_CX = 280, TRAY_CY = 172; // 타원 중심
+const TRAY_RX = 222, TRAY_RY = 102; // 이모지 배치 가능 반경 (테두리 안쪽)
+
+const TILT_LIMIT = 38, DANGER_WARN = 0.65, FLOOR_COUNT = 10;
+
+// ── 상태 ───────────────────────────────────────────────
+let items=[], tiltX=0, tiltY=0, running=false, rafId=null, shakeTimer=0;
+let best = parseInt(localStorage.getItem('trayBest4')||'0');
+let floorItems=[], nextId=0, dragging=null;
+
+const scene        = document.getElementById('scene');
+const trayGroup    = document.getElementById('trayGroup');
+const dropZone     = document.getElementById('dropZone');
+const dropHighlight= document.getElementById('dropHighlight');
+const floorShelf   = document.getElementById('floorShelf');
+const ghost        = document.getElementById('dragGhost');
+const startOverlay = document.getElementById('startOverlay');
+const goOverlay    = document.getElementById('gameoverOverlay');
+const canvas       = document.getElementById('emojiCanvas');
+const ctx          = canvas.getContext('2d');
+
+document.getElementById('bestVal').textContent = best;
+document.getElementById('goBest').textContent  = best;
+
+// ── 캔버스 크기 = scene 크기 ──────────────────────────
+function syncCanvas() {
+  const r = scene.getBoundingClientRect();
+  canvas.width  = r.width;
+  canvas.height = r.height;
+}
+
+// SVG 좌표 → 씬 픽셀 좌표 변환
+function svgToScene(sx, sy) {
+  const r = scene.getBoundingClientRect();
+  return {
+    x: sx / SVG_W * r.width,
+    y: sy / SVG_H * r.height,
+  };
+}
+
+// 씬 픽셀 → SVG 좌표
+function sceneToSvg(px, py) {
+  const r = scene.getBoundingClientRect();
+  return {
+    x: px / r.width  * SVG_W,
+    y: py / r.height * SVG_H,
+  };
+}
+
+// 클라이언트 좌표 → SVG 좌표
+function clientToSvg(cx, cy) {
+  const r = scene.getBoundingClientRect();
+  return {
+    x: (cx - r.left) / r.width  * SVG_W,
+    y: (cy - r.top)  / r.height * SVG_H,
+  };
+}
+
+// 쟁반 위인지 (SVG 좌표 기준)
+function isOnTray(sx, sy) {
+  const dx = (sx - TRAY_CX) / TRAY_RX;
+  const dy = (sy - TRAY_CY) / TRAY_RY;
+  return dx*dx + dy*dy <= 1;
+}
+
+// ── 이모지 폰트 크기 (무게 비례) ──────────────────────
+function emojiSize(w) {
+  const sceneW = scene.getBoundingClientRect().width;
+  const base = sceneW * 0.068; // 기본 크기
+  const t = Math.sqrt((Math.min(w,15) - 0.1) / 14.9); // 0~1
+  return Math.round(base * (1 + t * 3.5));
+}
+
+// ── 창고 이모지 ────────────────────────────────────────
+function randED() {
+  return Math.random() < 0.15
+    ? GIANT_EMOJI[Math.floor(Math.random()*GIANT_EMOJI.length)]
+    : EMOJI_DATA[Math.floor(Math.random()*EMOJI_DATA.length)];
+}
+
+function addFloorItem() {
+  const d = randED();
+  const id = nextId++;
+  const el = document.createElement('div');
+  el.className = 'e-chip' + (d.w>=15?' giant':'');
+  el.textContent = d.e;
+  el.dataset.id = id;
+  el.addEventListener('mousedown',  ev => startDrag(ev, d, el));
+  el.addEventListener('touchstart', ev => startDragTouch(ev, d, el), {passive:false});
+  floorShelf.appendChild(el);
+  floorItems.push({...d, id, el});
+}
+function removeFloorItem(el) {
+  const i = floorItems.findIndex(f=>f.el===el);
+  if(i!==-1) floorItems.splice(i,1);
+  el.remove(); addFloorItem();
+}
+function initFloor() {
+  floorShelf.innerHTML=''; floorItems=[];
+  for(let i=0;i<FLOOR_COUNT;i++) addFloorItem();
+}
+
+// ── 드래그 ─────────────────────────────────────────────
+function startDrag(e, data, sourceEl) {
+  if(!running) return; e.preventDefault();
+  dragging={data,sourceEl};
+  sourceEl.classList.add('dragging');
+  ghost.textContent = data.e;
+  ghost.style.fontSize = data.w>=15 ? '3.6rem' : '2.4rem';
+  ghost.style.display = 'block';
+  moveGhost(e.clientX, e.clientY);
+}
+function startDragTouch(e, data, sourceEl) {
+  if(!running) return; e.preventDefault();
+  dragging={data,sourceEl};
+  sourceEl.classList.add('dragging');
+  ghost.textContent = data.e;
+  ghost.style.fontSize = data.w>=15 ? '3.6rem' : '2.4rem';
+  ghost.style.display = 'block';
+  moveGhost(e.touches[0].clientX, e.touches[0].clientY);
+}
+document.addEventListener('mousemove', e=>{ if(!dragging)return; moveGhost(e.clientX,e.clientY); hoverCheck(e.clientX,e.clientY); });
+document.addEventListener('mouseup',   e=>{ if(!dragging)return; ghost.style.display='none'; dropHighlight.setAttribute('opacity','0'); if(!tryDrop(e.clientX,e.clientY)) dragging.sourceEl.classList.remove('dragging'); dragging=null; });
+document.addEventListener('touchmove', e=>{ if(!dragging)return; e.preventDefault(); moveGhost(e.touches[0].clientX,e.touches[0].clientY); hoverCheck(e.touches[0].clientX,e.touches[0].clientY); },{passive:false});
+document.addEventListener('touchend',  e=>{ if(!dragging)return; ghost.style.display='none'; dropHighlight.setAttribute('opacity','0'); if(!tryDrop(e.changedTouches[0].clientX,e.changedTouches[0].clientY)) dragging.sourceEl.classList.remove('dragging'); dragging=null; });
+
+function moveGhost(cx,cy){ ghost.style.left=cx+'px'; ghost.style.top=cy+'px'; }
+
+function hoverCheck(cx,cy) {
+  const sv = clientToSvg(cx,cy);
+  const on = isOnTray(sv.x, sv.y);
+  dropHighlight.setAttribute('stroke', on?'rgba(244,165,53,0.8)':'rgba(244,165,53,0)');
+  dropHighlight.setAttribute('opacity', on?'1':'0');
+}
+
+function tryDrop(cx,cy) {
+  const sv = clientToSvg(cx,cy);
+  if(!isOnTray(sv.x, sv.y)) return false;
+  items.push({sx:sv.x, sy:sv.y, e:dragging.data.e, w:dragging.data.w});
+  removeFloorItem(dragging.sourceEl);
+  return true;
+}
+
+// ── 물리 / 토크 ────────────────────────────────────────
+function computeTorque() {
+  let tx=0, ty=0;
+  items.forEach(it=>{
+    tx += (it.sx - TRAY_CX) / TRAY_RX * it.w;
+    ty += (it.sy - TRAY_CY) / TRAY_RY * it.w;
+  });
+  return {tx,ty};
+}
+
+// ── 그리기 ─────────────────────────────────────────────
+function drawEmojis() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const W_MIN=0.1, W_MAX=15;
+  items.forEach(it=>{
+    const fs = emojiSize(it.w);
+    ctx.font=`${fs}px serif`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.shadowColor='rgba(0,0,0,.6)';
+    ctx.shadowBlur=Math.max(6,fs*.22);
+    ctx.shadowOffsetY=Math.max(2,fs*.07);
+    // SVG → 씬 픽셀
+    const sc = svgToScene(it.sx, it.sy);
+    ctx.fillText(it.e, sc.x, sc.y);
+    ctx.shadowColor='transparent';
+  });
+}
+
+// ── 게임 루프 ──────────────────────────────────────────
+function init() {
+  syncCanvas();
+  items=[]; tiltX=0; tiltY=0; shakeTimer=0; running=true;
+  startOverlay.style.display='none';
+  goOverlay.classList.remove('show');
+  trayGroup.style.transition='';
+  trayGroup.style.transform='';
+  initFloor(); updateHUD(0,0);
+  if(rafId) cancelAnimationFrame(rafId);
+  loop();
+}
+
+const SLIDE_THRESHOLD = 0.15; // 기울기 비율이 이 이상이면 미끄러지기 시작
+const SLIDE_SPEED = 0.35;     // 미끄러짐 속도 계수
+
+function slideEmojis(danger) {
+  if(danger < SLIDE_THRESHOLD) return;
+  const slideFactor = (danger - SLIDE_THRESHOLD) / (1 - SLIDE_THRESHOLD); // 0~1
+  const force = slideFactor * slideFactor * SLIDE_SPEED; // 가속도 느낌
+
+  // 기울기 방향 (tiltY → X축 이동, tiltX → Y축 이동)
+  const mag = Math.sqrt(tiltX**2 + tiltY**2) || 1;
+  const dirX = tiltY / mag; // rotateY가 양수면 오른쪽으로 기울어짐
+  const dirY = tiltX / mag; // rotateX가 양수면 앞으로 기울어짐
+
+  for(let i = items.length - 1; i >= 0; i--) {
+    const it = items[i];
+    it.sx += dirX * force * TRAY_RX * 0.02;
+    it.sy += dirY * force * TRAY_RY * 0.02;
+
+    // 쟁반 밖으로 나갔는지 체크
+    const dx = (it.sx - TRAY_CX) / TRAY_RX;
+    const dy = (it.sy - TRAY_CY) / TRAY_RY;
+    if(dx*dx + dy*dy > 1.05) {
+      // 화면에서 떨어지는 애니메이션
+      spawnFallingEmoji(it);
+      items.splice(i, 1);
+    }
+  }
+}
+
+function spawnFallingEmoji(it) {
+  const sceneRect = scene.getBoundingClientRect();
+  const sc = svgToScene(it.sx, it.sy);
+  const startX = sceneRect.left + sc.x;
+  const startY = sceneRect.top + sc.y;
+  const fs = emojiSize(it.w);
+
+  const el = document.createElement('div');
+  el.className = 'falling-emoji';
+  el.textContent = it.e;
+  el.style.cssText = `left:${startX}px;top:${startY}px;font-size:${fs}px;line-height:1;will-change:transform,opacity;`;
+  document.body.appendChild(el);
+
+  const dirX = (it.sx - TRAY_CX) / TRAY_RX;
+  const dirY = (it.sy - TRAY_CY) / TRAY_RY;
+  let vx = dirX * 6 + (Math.random()-.5)*2;
+  let vy = -2 + dirY * 4;
+  let px=0, py=0, rot=0, rotV=(Math.random()-.5)*20, opacity=1;
+
+  function animFrame() {
+    vy += 0.5;
+    vx *= 0.98;
+    px += vx; py += vy;
+    rot += rotV;
+    opacity -= 0.015;
+    el.style.transform = `translate(${px}px,${py}px) rotate(${rot}deg)`;
+    el.style.opacity = Math.max(0, opacity);
+    if(opacity > 0) requestAnimationFrame(animFrame);
+    else el.remove();
+  }
+  requestAnimationFrame(animFrame);
+}
+
+function loop() {
+  if(!running) return;
+  const {tx,ty} = computeTorque();
+  tiltX += (ty*4  - tiltX) * .08;
+  tiltY += (tx*6  - tiltY) * .08;
+
+  const clX = Math.max(-TILT_LIMIT*1.1, Math.min(TILT_LIMIT*1.1, tiltX));
+  const clY = Math.max(-TILT_LIMIT*1.1, Math.min(TILT_LIMIT*1.1, tiltY));
+  trayGroup.style.transform = `rotateX(${-clX}deg) rotateY(${clY}deg)`;
+
+  const mag = Math.sqrt(tiltX**2+tiltY**2);
+  const danger = Math.min(1, mag/TILT_LIMIT);
+
+  if(mag >= TILT_LIMIT){ gameOver(); return; }
+
+  // 이모지 미끄러짐 처리
+  slideEmojis(danger);
+
+  updateHUD(items.length, danger);
+  drawEmojis();
+
+  if(danger > DANGER_WARN){
+    shakeTimer++;
+    if(shakeTimer%6<3) trayGroup.style.transform += ` translateX(${(Math.random()-.5)*5}px)`;
+  } else { shakeTimer=0; }
+
+  rafId = requestAnimationFrame(loop);
+}
+
+// ── HUD 업데이트 ────────────────────────────────────────
+function updateHUD(count, danger) {
+  const pct = Math.round(danger*100);
+  document.getElementById('countVal').textContent = count;
+  const de = document.getElementById('dangerVal');
+  de.textContent=pct+'%'; de.className='hud-value'+(danger>DANGER_WARN?' danger':'');
+
+  const mag=Math.sqrt(tiltX**2+tiltY**2);
+  const angle=Math.atan2(tiltY,tiltX);
+  const ratio=Math.min(1,mag/TILT_LIMIT);
+  const needle=document.getElementById('tiltNeedle');
+  const fill=document.getElementById('tiltFill');
+  const npos=50+Math.sin(angle)*ratio*44;
+  needle.style.left=npos+'%';
+  const col=danger<.4?'#40C870':danger<.7?'#F4A535':'#E84040';
+  needle.style.background=col;
+  if(tiltY>0){fill.style.left='50%';fill.style.width=(ratio*44)+'%';}
+  else{fill.style.left=(50-ratio*44)+'%';fill.style.width=(ratio*44)+'%';}
+  fill.style.background=col;
+  const df=document.getElementById('dangerFill');
+  df.style.width=pct+'%';
+  df.style.background=danger<.4?'linear-gradient(90deg,#40C870,#80e8a0)':danger<.7?'linear-gradient(90deg,#F4A535,#f8c070)':'linear-gradient(90deg,#E84040,#ff8080)';
+}
+
+// ── 게임오버 ───────────────────────────────────────────
+function gameOver() {
+  running=false; cancelAnimationFrame(rafId);
+
+  // 1. 캔버스의 이모지를 즉시 지움 (쟁반 위 이모지 제거)
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // 2. 쟁반 뒤집기
+  trayGroup.style.transition='transform .65s cubic-bezier(.4,0,.6,1)';
+  trayGroup.style.transform='rotateX(180deg) rotateY(18deg)';
+
+  // 3. 이모지를 실제 화면 위치에서 물리 기반으로 떨어뜨리기
+  //    기울기 방향으로 초기 속도 부여
+  const sceneRect = scene.getBoundingClientRect();
+  const flipDirX = tiltY > 0 ? 1 : -1; // rotateY → 좌우 방향
+  const flipDirY = tiltX > 0 ? 1 : -1; // rotateX → 앞뒤 방향
+
+  items.forEach((it, idx) => {
+    // 씬 픽셀 위치 계산
+    const sc = svgToScene(it.sx, it.sy);
+    const startX = sceneRect.left + sc.x;
+    const startY = sceneRect.top  + sc.y;
+    const fs = emojiSize(it.w);
+
+    const el = document.createElement('div');
+    el.className = 'falling-emoji';
+    el.textContent = it.e;
+    el.style.cssText = `
+      left:${startX}px; top:${startY}px;
+      font-size:${fs}px; line-height:1;
+      will-change:transform,opacity;
+    `;
+    document.body.appendChild(el);
+
+    // 물리: 기울기 방향으로 날아가다가 중력으로 떨어짐
+    const delay = idx * 30 + Math.random()*80; // 순차 딜레이
+    const vx0 = flipDirX * (4 + Math.random()*6) + (Math.random()-.5)*4;
+    const vy0 = -4 - Math.random()*6; // 처음엔 위로 튀어오름
+    let vx=vx0, vy=vy0, px=0, py=0;
+    let rot=0, rotV=(Math.random()-.5)*25;
+    let opacity=1;
+    let startTime=null;
+
+    function animFrame(ts) {
+      if(!startTime) startTime=ts;
+      if(ts-startTime < delay) { requestAnimationFrame(animFrame); return; }
+
+      vy += 0.55; // 중력
+      vx *= 0.98; // 공기 저항
+      px += vx; py += vy;
+      rot += rotV;
+      opacity -= 0.012;
+
+      el.style.transform = `translate(${px}px, ${py}px) rotate(${rot}deg)`;
+      el.style.opacity = Math.max(0, opacity);
+
+      if(opacity > 0) requestAnimationFrame(animFrame);
+      else el.remove();
+    }
+    requestAnimationFrame(animFrame);
+  });
+
+  const count = items.length;
+  if(count>best){
+    best=count;
+    localStorage.setItem('trayBest4',best);
+    document.getElementById('bestVal').textContent=best;
+  }
+
+  setTimeout(()=>{
+    document.getElementById('goCount').textContent = count+'개';
+    document.getElementById('goBest').textContent  = best+'개';
+    document.getElementById('goEmojis').textContent = items.map(i=>i.e).join('')||'—';
+    goOverlay.classList.add('show');
+  }, 1100);
+}
+
+// ── 이벤트 ─────────────────────────────────────────────
+document.getElementById('startBtn').addEventListener('click', init);
+document.getElementById('retryBtn').addEventListener('click', ()=>{
+  // 낙하 중인 이모지 제거
+  document.querySelectorAll('.falling-emoji').forEach(el=>el.remove());
+  init();
+});
+window.addEventListener('resize', ()=>{ if(running) syncCanvas(); });
+</script>
+</body>
+</html>
