@@ -107,7 +107,7 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
 .danger-fill { height:100%; border-radius:4px; transition:width .2s,background .2s; }
 
 /* 레이아웃 - 항상 1열 (세로 배치) */
-.main-area { display:flex; flex-direction:column; align-items:center; gap:16px; width:100%; }
+.main-area { display:flex; flex-direction:column; align-items:center; gap:16px; width:100%; position:relative; }
 
 /* ── 씬 & 쟁반 ── */
 .scene-wrap { perspective:1000px; position:relative; flex-shrink:0; width:100%; }
@@ -164,24 +164,55 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
 .go-score-label { font-size:.8rem; color:var(--muted); letter-spacing:.15em; text-transform:uppercase; }
 .go-score-val { font-family:'Gaegu',cursive; font-size:clamp(2rem,4vw,3rem); color:var(--accent); }
 
-/* 시작 오버레이 */
+/* 시작 오버레이 - main-area 전체를 덮음 */
 .start-overlay {
   position:absolute; inset:0;
   display:flex; flex-direction:column; align-items:center; justify-content:center;
-  background:rgba(15,8,2,.93); border-radius:16px; gap:.5rem;
-  backdrop-filter:blur(6px); z-index:30;
+  background:radial-gradient(ellipse at 50% 40%, rgba(40,25,8,.92), rgba(10,5,0,.97));
+  border-radius:20px; gap:.6rem;
+  backdrop-filter:blur(10px); z-index:30;
+  border:1px solid rgba(244,165,53,.15);
+  box-shadow:inset 0 0 80px rgba(244,165,53,.05), 0 0 40px rgba(0,0,0,.5);
 }
-.start-overlay-emoji { font-size:3.5rem; }
-.start-overlay-title { font-family:'Gaegu',cursive; font-size:clamp(1.8rem,3.5vw,2.6rem); color:var(--accent); }
-.start-overlay-sub { font-size:clamp(.85rem,1.6vw,1.1rem); color:var(--muted); text-align:center; padding:0 1rem; }
+.start-overlay-emoji {
+  font-size:clamp(4rem,10vw,6rem);
+  animation:float-emoji 2.5s ease-in-out infinite;
+  filter:drop-shadow(0 8px 20px rgba(244,165,53,.4));
+}
+@keyframes float-emoji {
+  0%,100% { transform:translateY(0) rotate(-3deg); }
+  50% { transform:translateY(-12px) rotate(3deg); }
+}
+.start-overlay-title {
+  font-family:'Gaegu',cursive; font-size:clamp(2.2rem,5vw,3.2rem); color:var(--accent);
+  text-shadow:0 2px 16px rgba(244,165,53,.4), 0 0 40px rgba(244,165,53,.15);
+  letter-spacing:.05em;
+}
+.start-overlay-sub {
+  font-size:clamp(.9rem,1.8vw,1.15rem); color:var(--muted); text-align:center;
+  padding:0 1.5rem; line-height:1.5;
+}
+.start-overlay-rules {
+  display:flex; gap:clamp(.8rem,2vw,1.5rem); margin:.4rem 0;
+  flex-wrap:wrap; justify-content:center;
+}
+.start-rule {
+  display:flex; flex-direction:column; align-items:center; gap:4px;
+  background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08);
+  border-radius:12px; padding:10px 16px; min-width:90px;
+}
+.start-rule-icon { font-size:1.6rem; }
+.start-rule-text { font-size:clamp(.7rem,1.2vw,.85rem); color:rgba(255,200,100,.6); text-align:center; }
 
 .btn {
-  margin-top:.6rem; padding:.8rem 2.5rem; background:var(--accent); color:#1a1208;
-  border:none; border-radius:10px; font-family:'Gaegu',cursive; font-size:clamp(1.2rem,2.2vw,1.6rem);
-  cursor:pointer; transition:transform .1s,opacity .1s; box-shadow:0 4px 20px rgba(244,165,53,.45);
+  margin-top:.6rem; padding:.9rem 3rem; background:linear-gradient(180deg,#F4A535,#e08a18); color:#1a1208;
+  border:none; border-radius:14px; font-family:'Gaegu',cursive; font-size:clamp(1.4rem,2.5vw,1.8rem);
+  font-weight:700; letter-spacing:.05em;
+  cursor:pointer; transition:transform .15s,box-shadow .15s;
+  box-shadow:0 4px 20px rgba(244,165,53,.45), inset 0 1px 0 rgba(255,255,255,.3);
 }
-.btn:hover { opacity:.9; transform:scale(1.04); }
-.btn:active { transform:scale(.97); }
+.btn:hover { transform:scale(1.06); box-shadow:0 6px 28px rgba(244,165,53,.6), inset 0 1px 0 rgba(255,255,255,.3); }
+.btn:active { transform:scale(.95); }
 
 /* 창고 */
 .floor-wrap { max-width:500px; min-width:200px; width:100%;}
@@ -228,6 +259,9 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
 .countdown-timer {
   position:absolute; top:12px; right:12px; z-index:20;
   width:48px; height:48px; display:none;
+}
+@media (max-width:600px) {
+  .countdown-timer { top:-52px; right:0; }
 }
 .countdown-timer.active { display:block; }
 .countdown-timer svg { width:100%; height:100%; transform:rotate(-90deg); }
@@ -374,14 +408,6 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
           <div class="countdown-text" id="countdownText">10</div>
         </div>
 
-        <!-- 시작 오버레이 -->
-        <div class="start-overlay" id="startOverlay">
-          <div class="start-overlay-emoji">🍽️</div>
-          <div class="start-overlay-title">쟁반 균형 게임</div>
-          <div class="start-overlay-sub">창고의 이모지를 드래그해서 쟁반에 올리세요</div>
-          <div class="start-overlay-sub" style="color:rgba(255,150,100,.6)">무게가 쏠리면 쟁반이 뒤집혀요!</div>
-          <button class="btn" id="startBtn">게임 시작</button>
-        </div>
       </div>
     </div>
 
@@ -389,6 +415,20 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
     <div class="floor-wrap">
       <div class="floor-label">이모지를 드래그해서 쟁반에 올리세요</div>
       <div class="floor-shelf" id="floorShelf"></div>
+    </div>
+
+    <!-- 시작 오버레이 (main-area 전체 덮음) -->
+    <div class="start-overlay" id="startOverlay">
+      <div class="start-overlay-emoji">🍽️</div>
+      <div class="start-overlay-title">쟁반 균형 게임</div>
+      <div class="start-overlay-sub">이모지를 드래그해서 쟁반 위에 올려보세요!</div>
+      <div class="start-overlay-rules">
+        <div class="start-rule"><div class="start-rule-icon">👆</div><div class="start-rule-text">드래그해서<br>올리기</div></div>
+        <div class="start-rule"><div class="start-rule-icon">⚖️</div><div class="start-rule-text">균형을<br>유지하기</div></div>
+        <div class="start-rule"><div class="start-rule-icon">💥</div><div class="start-rule-text">쏟아지면<br>게임 오버</div></div>
+      </div>
+      <div class="start-overlay-sub" style="color:rgba(255,150,100,.5); font-size:clamp(.75rem,1.3vw,.9rem);">10초 안에 올리지 않으면 자동으로 올라갑니다</div>
+      <button class="btn" id="startBtn">게임 시작</button>
     </div>
   </div>
 
