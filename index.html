@@ -232,6 +232,15 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
 .e-chip:hover { background:rgba(255,200,80,.15); transform:scale(1.14); }
 .e-chip.dragging { opacity:.3; transform:scale(.88); }
 .e-chip.giant { font-size:clamp(2.6rem,4.2vw,3.4rem); background:rgba(232,64,64,.12); border-color:rgba(232,64,64,.35); }
+.e-chip .pts {
+  position:absolute; bottom:-2px; right:-2px;
+  font-size:.55rem; font-weight:700; line-height:1;
+  background:var(--accent); color:#1a1208;
+  border-radius:6px; padding:1px 4px;
+  font-family:'Noto Sans KR',sans-serif;
+  pointer-events:none;
+}
+.e-chip.giant .pts { background:var(--red); color:#fff; }
 
 /* 드래그 고스트 */
 #dragGhost {
@@ -291,7 +300,7 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
     </div>
 
     <div class="hud">
-      <div class="hud-item"><div class="hud-label">올린 수</div><div class="hud-value" id="countVal">0</div></div>
+      <div class="hud-item"><div class="hud-label">점수</div><div class="hud-value" id="countVal">0</div></div>
       <div class="hud-item"><div class="hud-label">최고</div><div class="hud-value" style="color:#999" id="bestVal">0</div></div>
     </div>
 
@@ -439,7 +448,7 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
   <div class="go-emoji">💥</div>
   <div class="go-title">쏟아졌다!</div>
   <div class="go-scores">
-    <div class="go-score-item"><div class="go-score-label">올린 수</div><div class="go-score-val" id="goCount">0</div></div>
+    <div class="go-score-item"><div class="go-score-label">점수</div><div class="go-score-val" id="goCount">0</div></div>
     <div class="go-score-item"><div class="go-score-label">최고기록</div><div class="go-score-val" id="goBest">0</div></div>
   </div>
   <div class="go-emojis" id="goEmojis"></div>
@@ -480,8 +489,10 @@ const TILT_LIMIT = 38, DANGER_WARN = 0.65, FLOOR_COUNT = 10;
 
 // ── 상태 ───────────────────────────────────────────────
 let items=[], tiltX=0, tiltY=0, running=false, rafId=null, shakeTimer=0;
-let best = parseInt(localStorage.getItem('trayBest4')||'0');
+let score=0, best = parseInt(localStorage.getItem('trayBest5')||'0');
 let floorItems=[], nextId=0, dragging=null;
+
+function toPoints(w){ return Math.round(w * 10); }
 let lastDropTime=0;
 const AUTO_DROP_DELAY = 10000; // 10초
 
@@ -564,8 +575,13 @@ function addFloorItem() {
   const id = nextId++;
   const el = document.createElement('div');
   el.className = 'e-chip' + (d.w>=15?' giant':'');
-  el.textContent = d.e;
   el.dataset.id = id;
+  const emojiSpan = document.createTextNode(d.e);
+  el.appendChild(emojiSpan);
+  const badge = document.createElement('span');
+  badge.className = 'pts';
+  badge.textContent = toPoints(d.w);
+  el.appendChild(badge);
   el.addEventListener('mousedown',  ev => startDrag(ev, d, el));
   el.addEventListener('touchstart', ev => startDragTouch(ev, d, el), {passive:false});
   floorShelf.appendChild(el);
@@ -639,6 +655,7 @@ function tryDrop(cx,cy) {
   const sv = clientToSvg(cx,cy);
   if(!isOnTray(sv.x, sv.y)) return false;
   items.push({sx:sv.x, sy:sv.y, e:dragging.data.e, w:dragging.data.w, dropT:performance.now()});
+  score += toPoints(dragging.data.w);
   removeFloorItem(dragging.sourceEl);
   spawnDropBurst(cx, cy);
   lastDropTime = performance.now();
@@ -731,7 +748,7 @@ function drawEmojis() {
 // ── 게임 루프 ──────────────────────────────────────────
 function init() {
   syncCanvas();
-  items=[]; tiltX=0; tiltY=0; shakeTimer=0; running=true; lastDropTime=performance.now();
+  items=[]; tiltX=0; tiltY=0; shakeTimer=0; score=0; running=true; lastDropTime=performance.now();
   startOverlay.style.display='none';
   goOverlay.classList.remove('show');
   trayGroup.style.transition='';
@@ -813,6 +830,7 @@ function autoDrop() {
   const sx = TRAY_CX + Math.cos(angle)*TRAY_RX*r;
   const sy = TRAY_CY + Math.sin(angle)*TRAY_RY*r;
   items.push({sx, sy, e:fi.e, w:fi.w, dropT:performance.now()});
+  score += toPoints(fi.w);
   // 드롭 위치를 화면 좌표로 변환해서 반짝이 효과
   const sc = svgToScene(sx, sy);
   const sceneRect = scene.getBoundingClientRect();
@@ -860,7 +878,7 @@ function loop() {
   // 이모지 미끄러짐 처리
   slideEmojis(danger);
 
-  updateHUD(items.length, danger);
+  updateHUD(score, danger);
   updateCountdown();
   drawEmojis();
 
@@ -873,9 +891,9 @@ function loop() {
 }
 
 // ── HUD 업데이트 ────────────────────────────────────────
-function updateHUD(count, danger) {
+function updateHUD(sc, danger) {
   const pct = Math.round(danger*100);
-  document.getElementById('countVal').textContent = count;
+  document.getElementById('countVal').textContent = sc;
   const de = document.getElementById('dangerVal');
   de.textContent=pct+'%'; de.className='danger-pct'+(danger>DANGER_WARN?' danger':'');
 
@@ -959,16 +977,15 @@ function gameOver() {
     requestAnimationFrame(animFrame);
   });
 
-  const count = items.length;
-  if(count>best){
-    best=count;
-    localStorage.setItem('trayBest4',best);
+  if(score>best){
+    best=score;
+    localStorage.setItem('trayBest5',best);
     document.getElementById('bestVal').textContent=best;
   }
 
   setTimeout(()=>{
-    document.getElementById('goCount').textContent = count+'개';
-    document.getElementById('goBest').textContent  = best+'개';
+    document.getElementById('goCount').textContent = score+'점';
+    document.getElementById('goBest').textContent  = best+'점';
     document.getElementById('goEmojis').textContent = items.map(i=>i.e).join('')||'—';
     goOverlay.classList.add('show');
   }, 1100);
