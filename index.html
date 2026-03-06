@@ -25,16 +25,16 @@
 <meta name="twitter:description" content="이모지를 드래그해서 쟁반 위에 올려보세요! 무게 균형이 무너지면 쟁반이 뒤집혀요.">
 <meta name="twitter:image" content="og_img.png">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Gaegu:wght@700&family=Noto+Sans+KR:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Gaegu:wght@700&family=Noto+Sans+KR:wght@400;700&family=Orbitron:wght@500;700&display=swap');
 
 * { margin:0; padding:0; box-sizing:border-box; }
+body.no-scroll { overflow:hidden; }
 :root {
   --bg:#1a1208; --accent:#F4A535; --red:#E84040; --green:#40C870;
   --muted:rgba(255,200,100,0.8);
 }
-html,body { height:100%; }
 body {
-  background:var(--bg); min-height:100vh;
+  background:var(--bg); 
   display:flex; flex-direction:column; align-items:center;
   font-family:'Noto Sans KR',sans-serif;
   overflow-x:hidden; padding:16px 16px 28px;
@@ -51,7 +51,6 @@ body::before {
   width:100%; max-width:900px;
   display:flex; flex-direction:column; align-items:center;
   position:relative; z-index:1;
-  padding-bottom:100px;
 }
 
 /* 상단 헤더: 제목 + HUD + 바를 한 줄로 */
@@ -62,7 +61,6 @@ body::before {
 }
 .title-group { text-align:center; flex-shrink:0; }
 h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:var(--accent); text-shadow:0 2px 8px rgba(0,0,0,.5); margin-bottom:0; line-height:1.1; }
-.subtitle { font-size:clamp(.6rem,1vw,.75rem); color:var(--muted); letter-spacing:.2em; text-transform:uppercase; margin:0; }
 
 /* HUD */
 .hud {
@@ -80,7 +78,7 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
 }
 .hud-label { font-size:.8rem; color:var(--muted); letter-spacing:.12em; text-transform:uppercase; line-height:1; margin-bottom:2px; }
 .hud-value {
-  font-family:'Gaegu',cursive; font-size:clamp(1.3rem,2.2vw,1.8rem);
+  font-family:'Orbitron',sans-serif; font-size:clamp(1rem,1.8vw,1.4rem); font-weight:700;
   color:var(--accent); line-height:1.1;
   min-width:2.2em; display:inline-block;
   font-variant-numeric:tabular-nums;
@@ -91,7 +89,7 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
 /* 바 + 위험도 % */
 .bars-group { display:flex; align-items:center; gap:8px; }
 .danger-pct {
-  font-family:'Gaegu',cursive; font-size:clamp(1.3rem,2.2vw,1.8rem);
+  font-family:'Orbitron',sans-serif; font-size:clamp(1rem,1.8vw,1.4rem); font-weight:700;
   color:var(--accent); line-height:1; min-width:2.8em; text-align:center;
   font-variant-numeric:tabular-nums;
 }
@@ -156,27 +154,45 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
 #levelClearOverlay.show { display:flex; animation:fadeIn .5s ease; }
 .lc-icon { font-size:clamp(3.5rem,8vw,5rem); animation:trophyBounce .6s ease; }
 .lc-title {
-  font-family:'Gaegu',cursive; font-size:clamp(2.2rem,5.5vw,3.5rem); color:var(--accent);
+  font-family:'Orbitron',sans-serif; font-size:clamp(2.2rem,5.5vw,3.5rem); color:var(--accent);
   text-shadow:0 0 20px rgba(244,165,53,.4);
 }
-.lc-sub { font-size:clamp(1rem,2vw,1.3rem); color:var(--muted); }
+.lc-sub { font-family:'Orbitron',sans-serif; font-size:clamp(1rem,2vw,1.3rem); color:var(--muted); }
 .lc-countdown {
-  font-family:'Gaegu',cursive; font-size:clamp(3rem,7vw,4.5rem); color:#fff;
+  font-family:'Orbitron',sans-serif; font-size:clamp(3rem,7vw,4.5rem); font-weight:700; color:#fff;
   animation:pulse .5s ease infinite alternate;
 }
 .lc-next { font-size:clamp(.9rem,1.8vw,1.1rem); color:rgba(255,200,100,.5); }
 
 /* 게임오버 전체화면 */
 #gameoverOverlay {
-  position:fixed; inset:0; z-index:9000;
+  position:fixed; inset:0; z-index:9000; overflow-y:auto;
   display:none; flex-direction:column; align-items:center; justify-content:center;
   gap:.7rem; background:rgba(8,4,0,.7); backdrop-filter:blur(12px);
+  padding: 50px 0;
 }
 @keyframes fadeIn { from{opacity:0} to{opacity:1} }
 #gameoverOverlay.show { display:flex; animation:fadeIn .5s ease; }
-.go-emoji { font-size:clamp(3.5rem,8vw,5.5rem); }
-.go-title { font-family:'Gaegu',cursive; font-size:clamp(2.4rem,6vw,4rem); color:var(--accent); }
-.go-sub { font-size:clamp(.9rem,2vw,1.2rem); color:var(--muted); }
+.go-emoji { font-size:clamp(3.5rem,8vw,5.5rem); margin-bottom:-.2rem; margin-top:50px;}
+.go-title-row {
+  display:flex; flex-direction:column; align-items:center; gap:0;
+}
+@media (min-width:601px) {
+  .go-title-row { flex-direction:row; gap:.6rem; align-items:baseline; }
+}
+.go-title {
+  font-family:'Gaegu',cursive; font-size:clamp(2rem,5vw,3rem); color:var(--accent);
+  text-shadow:0 2px 12px rgba(244,165,53,.3);
+}
+.go-sub-title {
+  font-family:'Noto Sans KR',sans-serif; font-size:clamp(.95rem,2vw,1.2rem);
+  color:var(--muted);
+}
+.go-level-badge {
+  font-family:'Orbitron',sans-serif; font-size:clamp(.7rem,1.3vw,.85rem); font-weight:700;
+  color:var(--accent); background:rgba(244,165,53,.12); border:1px solid rgba(244,165,53,.25);
+  border-radius:6px; padding:3px 10px; letter-spacing:.05em;
+}
 .go-scores {
   display:flex; gap:2px; margin:.5rem 0;
   background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.3);
@@ -189,7 +205,7 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
 }
 .go-score-label { font-size:.8rem; color:var(--muted); letter-spacing:.12em; text-transform:uppercase; line-height:1; margin-bottom:2px; }
 .go-score-val {
-  font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem);
+  font-family:'Orbitron',sans-serif; font-size:clamp(1.2rem,3vw,1.8rem); font-weight:700;
   color:var(--accent); line-height:1.1; font-variant-numeric:tabular-nums;
 }
 
@@ -205,6 +221,10 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
   50%  { transform:scale(1.3) rotate(5deg); opacity:1; }
   70%  { transform:scale(.9) rotate(-3deg); }
   100% { transform:scale(1) rotate(0deg); }
+}
+.go-nickname-sub {
+  font-family:'Noto Sans KR',sans-serif; font-size:clamp(.95rem,2vw,1.2rem);
+  color:var(--muted);
 }
 .go-nickname-title {
   font-family:'Gaegu',cursive; font-size:clamp(1.4rem,3vw,1.9rem); color:var(--accent);
@@ -229,12 +249,12 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
 .go-nickname-row { display:flex; gap:.5rem; align-items:center; }
 .go-nickname input {
   width:140px; padding:.5rem .8rem; border:2px solid #000;
-  border-radius:10px; background:rgba(255,255,255,.9); color:#fff;
-  font-family:'Noto Sans KR',sans-serif; font-size:1rem; text-align:center;
+  border-radius:10px; background:rgba(255,255,255,.9); color:#1a1208;
+  font-family:'Noto Sans KR',sans-serif; font-size:0.9rem; 
   outline:none; transition:border-color .2s;
 }
 .go-nickname input:focus { border-color:var(--accent); }
-.go-nickname input::placeholder { color:rgba(255,200,100,1); }
+.go-nickname input::placeholder { color:rgba(26,18,8,.5); }
 .btn-save {
   padding:.5rem 1.2rem; background:linear-gradient(180deg,#F4A535,#e08a18); color:#1a1208;
   border:none; border-radius:10px; font-family:'Gaegu',cursive; font-size:1.1rem;
@@ -288,16 +308,16 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
 .go-lb-rank.silver { color:#C0C0C0; }
 .go-lb-rank.bronze { color:#CD7F32; }
 .go-lb-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:160px; }
-.go-lb-score { font-family:'Gaegu',cursive; font-size:1.05rem; color:var(--accent); text-align:center; }
+.go-lb-score { font-family:'Orbitron',sans-serif; font-size:.85rem; font-weight:700; color:var(--accent); text-align:right; }
 .go-lb-table tbody tr.me .go-lb-score { color:var(--accent); }
 .go-lb-empty { color:var(--muted); font-size:.85rem; padding:.8rem 0; text-align:center; }
 
 /* 시작 오버레이 - main-area 전체를 덮음 */
 .start-overlay {
-  position:absolute; inset:0;
+  position:absolute; left:0; right:0; top:0; min-height:100vh;
   display:flex; flex-direction:column; align-items:center; justify-content:center;
   background:radial-gradient(ellipse at 50% 40%, rgba(40,25,8,.92), rgba(10,5,0,.97));
-  border-radius:20px; gap:.6rem;
+  border-radius:20px; gap:.6rem; padding:1.5rem 1rem;
   backdrop-filter:blur(10px); z-index:30;
   border:1px solid rgba(244,165,53,.15);
   box-shadow:inset 0 0 80px rgba(244,165,53,.05), 0 0 40px rgba(0,0,0,.5);
@@ -319,6 +339,13 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
 .start-overlay-sub {
   font-size:clamp(.9rem,1.8vw,1.15rem); color:var(--muted); text-align:center;
   padding:0 1.5rem; line-height:1.5;
+}
+.start-overlay-hint {
+  font-size:clamp(.75rem,1.3vw,.9rem); color:rgba(255,150,100,.5); text-align:center;
+}
+.start-overlay-level {
+  font-family:'Orbitron',sans-serif; font-size:clamp(1rem,2vw,1.3rem); font-weight:700;
+  color:var(--accent); text-align:center; margin-top:.2rem;
 }
 .start-overlay-rules {
   display:flex; gap:clamp(.8rem,2vw,1.5rem); margin:.4rem 0;
@@ -344,7 +371,7 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
 
 /* 창고 */
 .floor-wrap { max-width:500px; min-width:200px; width:100%;}
-.floor-label { font-size:.85rem; color:var(--muted); letter-spacing:.18em; text-transform:uppercase; text-align:center; margin-top:10px; }
+.floor-label { font-size:.7rem; color:var(--muted); letter-spacing:.18em; text-transform:uppercase; text-align:center; margin-top:10px; }
 .floor-shelf {
   background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07);
   border-radius:14px; padding:2%;
@@ -409,12 +436,29 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
 .countdown-ring.warn { stroke:var(--red); }
 .countdown-text {
   position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-  font-family:'Gaegu',cursive; font-size:1.5rem; color:var(--accent); line-height:1;
+  font-family:'Orbitron',sans-serif; font-size:1.1rem; font-weight:700; color:var(--accent); line-height:1;
 }
 .countdown-text.warn { color:var(--red); animation:pulse .4s ease infinite alternate; }
 .countdown-label {
   font-family:'Noto Sans KR',sans-serif; font-size:.7rem; color:var(--muted);
   letter-spacing:.05em; margin-top:3px; line-height:1;
+}
+
+/* 별 퍼지기 효과 */
+.score-star {
+  position:fixed; pointer-events:none; z-index:9998;
+  font-size:var(--fs, 2rem); line-height:1;
+  will-change:transform,opacity;
+  filter:drop-shadow(0 0 6px rgba(255,215,0,.7));
+  animation:starBurst var(--dur, 900ms) cubic-bezier(.2,.8,.3,1) forwards;
+  animation-delay:var(--delay, 0ms);
+  opacity:0;
+}
+@keyframes starBurst {
+  0%   { transform:translate(0,0) scale(.3) rotate(0deg); opacity:1; }
+  30%  { transform:translate(calc(var(--tx)*.3),calc(var(--ty)*.3)) scale(1.4) rotate(calc(var(--rot)*.3)); opacity:1; }
+  70%  { opacity:.9; }
+  100% { transform:translate(var(--tx),var(--ty)) scale(0) rotate(var(--rot)); opacity:0; }
 }
 
 /* 떨어지는 이모지 (게임오버) */
@@ -472,13 +516,12 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
   <div class="top-header">
     <div class="title-group">
       <h1>🍽️ 쟁반 균형 게임</h1>
-      <p class="subtitle">드래그해서 쟁반에 올리기 · 전부 쏟으면 끝</p>
     </div>
 
     <div class="hud">
       <div class="hud-item"><div class="hud-label">레벨</div><div class="hud-value" id="levelVal">1</div></div>
-      <div class="hud-item"><div class="hud-label">점수</div><div class="hud-value" id="countVal">0</div></div>
-      <div class="hud-item"><div class="hud-label">목표</div><div class="hud-value" style="color:#999" id="goalVal">100</div></div>
+      <div class="hud-item"><div class="hud-label">⭐점수</div><div class="hud-value" id="countVal" style="color:yellow">0</div></div>
+      <div class="hud-item"><div class="hud-label">목표</div><div class="hud-value" style="color:#fff" id="goalVal">100</div></div>
       <div class="hud-item"><div class="hud-label">최고</div><div class="hud-value" style="color:#999" id="bestVal">0</div></div>
     </div>
 
@@ -605,25 +648,25 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
     <div class="floor-wrap">
       <div class="floor-shelf" id="floorShelf"></div>
       <div class="floor-label">이모지를 드래그해서 쟁반에 올리세요</div>
-    </div>
-
-    <!-- 시작 오버레이 (main-area 전체 덮음) -->
-    <div class="start-overlay" id="startOverlay">
-      <div class="start-overlay-emoji">🍽️</div>
-      <div class="start-overlay-title">쟁반 균형 게임</div>
-      <div class="start-overlay-sub">이모지를 드래그해서 쟁반 위에 올려보세요!</div>
-      <div class="start-overlay-rules">
-        <div class="start-rule"><div class="start-rule-icon">👆</div><div class="start-rule-text">드래그해서<br>올리기</div></div>
-        <div class="start-rule"><div class="start-rule-icon">⚖️</div><div class="start-rule-text">균형을<br>유지하기</div></div>
-        <div class="start-rule"><div class="start-rule-icon">💥</div><div class="start-rule-text">쏟아지면<br>게임 오버</div></div>
-      </div>
-      <div class="start-overlay-sub" style="color:rgba(255,150,100,.5); font-size:clamp(.75rem,1.3vw,.9rem);">10초 안에 올리지 않으면 자동으로 올라갑니다</div>
-      <div class="start-overlay-sub" style="color:var(--accent); font-family:'Gaegu',cursive; font-size:clamp(1rem,2vw,1.3rem); margin-top:.2rem;">Level 1 부터 시작</div>
-      <button class="btn" id="startBtn">게임 시작</button>
-    </div>
-  </div>
-
+    </div>    
+  </div> 
 </div>
+
+<!-- 시작 오버레이 (main-area 전체 덮음) -->
+<div class="start-overlay" id="startOverlay">
+  <div class="start-overlay-emoji">🍽️</div>
+  <div class="start-overlay-title">쟁반 균형 게임</div>
+  <div class="start-overlay-sub">이모지를 드래그해서 쟁반 위에 올려보세요!</div>
+  <div class="start-overlay-rules">
+    <div class="start-rule"><div class="start-rule-icon">👆</div><div class="start-rule-text">드래그해서<br>올리기</div></div>
+    <div class="start-rule"><div class="start-rule-icon">⚖️</div><div class="start-rule-text">균형을<br>유지하기</div></div>
+    <div class="start-rule"><div class="start-rule-icon">💥</div><div class="start-rule-text">쏟아지면<br>게임 오버</div></div>
+  </div>
+  <div class="start-overlay-hint">10초마다 자동으로 올라갑니다</div>
+  <div class="start-overlay-level">Level 1 부터 시작</div>
+  <button class="btn" id="startBtn">게임 시작</button>
+</div>
+
 
 <!-- 레벨 클리어 -->
 <div id="levelClearOverlay">
@@ -637,9 +680,12 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
 <!-- 게임오버 전체화면 -->
 <div id="gameoverOverlay">
   <div class="go-emoji">💥</div>
-  <div class="go-title">전부 쏟아졌다!</div>
+  <div class="go-title-row">
+    <div class="go-title">전부 쏟아졌다!</div>
+    <div class="go-sub-title" id="goSubTitle"></div>
+  </div>
+  <div class="go-level-badge" id="goLevelBadge">Lv.1</div>
   <div class="go-scores">
-    <div class="go-score-item"><div class="go-score-label">레벨</div><div class="go-score-val" id="goLevel">1</div></div>
     <div class="go-score-item"><div class="go-score-label">점수</div><div class="go-score-val" id="goCount">0</div></div>
     <div class="go-score-item"><div class="go-score-label">최고기록</div><div class="go-score-val" id="goBest">0</div></div>
   </div>
@@ -647,6 +693,7 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
   <!-- 닉네임 입력 (10위권 진입 시) -->
   <div class="go-nickname" id="goNickname">
     <div class="go-nickname-trophy">🏆</div>
+    <div class="go-nickname-sub" id="goNickSub"></div>
     <div class="go-nickname-title">저장할 닉네임을 입력하세요</div>
     <div class="go-nickname-row">
       <input type="text" id="goNickInput" maxlength="8" placeholder="닉네임" autocomplete="off">
@@ -1010,6 +1057,7 @@ function tryDrop(cx,cy) {
   score += toPoints(dragging.data.w);
   removeFloorItem(dragging.sourceEl);
   spawnDropBurst(cx, cy);
+  spawnScoreStars(cx, cy, toPoints(dragging.data.w));
   return true;
 }
 
@@ -1029,6 +1077,28 @@ function spawnDropBurst(cx, cy) {
     el.style.cssText = `left:${cx}px;top:${cy}px;width:${size}px;height:${size}px;background:${color};box-shadow:0 0 ${size*3}px ${color};animation:sparkle-burst ${dur}ms ease-out forwards;--sx:${ox}px;--sy:${oy}px;`;
     document.body.appendChild(el);
     el.addEventListener('animationend', ()=>el.remove());
+  }
+}
+
+// ── 점수 별 퍼지기 효과 ─────────────────────────────────
+function spawnScoreStars(cx, cy, pts) {
+  const stars = ['⭐','🌟','✨','💫','⚡'];
+  const count = Math.min(5 + Math.floor(pts / 5), 14);
+  for(let i = 0; i < count; i++) {
+    const el = document.createElement('div');
+    el.className = 'score-star';
+    el.textContent = stars[Math.floor(Math.random() * stars.length)];
+    const angle = (Math.PI * 2 / count) * i + (Math.random() - .5) * .8;
+    const dist = 60 + Math.random() * 90;
+    const tx = Math.cos(angle) * dist;
+    const ty = Math.sin(angle) * dist - 30;
+    const rot = (Math.random() - .5) * 540;
+    const dur = 700 + Math.random() * 500;
+    const delay = Math.random() * 120;
+    const fs = 1.4 + Math.random() * 1.4;
+    el.style.cssText = `left:${cx}px;top:${cy}px;--tx:${tx}px;--ty:${ty}px;--rot:${rot}deg;--dur:${dur}ms;--delay:${delay}ms;--fs:${fs}rem;`;
+    document.body.appendChild(el);
+    el.addEventListener('animationend', () => el.remove());
   }
 }
 
@@ -1105,6 +1175,7 @@ function init() {
   startOverlay.style.display='none';
   goOverlay.classList.remove('show');
   document.getElementById('levelClearOverlay').classList.remove('show');
+  document.body.classList.remove('no-scroll');
   trayGroup.style.transition='';
   trayGroup.style.transform='';
   initFloor(); updateHUD(0,0);
@@ -1193,6 +1264,7 @@ function autoDrop() {
   const sc = svgToScene(sx, sy);
   const sceneRect = scene.getBoundingClientRect();
   spawnDropBurst(sceneRect.left + sc.x, sceneRect.top + sc.y);
+  spawnScoreStars(sceneRect.left + sc.x, sceneRect.top + sc.y, toPoints(fi.w));
   removeFloorItem(fi.el);
   lastDropTime = performance.now();
 }
@@ -1293,11 +1365,13 @@ function levelClear() {
     document.getElementById('lcNext').textContent = '';
     document.getElementById('lcCountdown').textContent = '';
     lcOverlay.classList.add('show');
+    document.body.classList.add('no-scroll');
     spawnConfetti();
 
     // 올클리어 → 3초 후 게임오버 화면 (랭킹 등록)
     setTimeout(() => {
       lcOverlay.classList.remove('show');
+      document.body.classList.remove('no-scroll');
       // 랭킹 등록을 위해 gameOver 로직 재활용
       showGameOverScreen();
     }, 3000);
@@ -1309,6 +1383,7 @@ function levelClear() {
   document.getElementById('lcTitle').textContent = 'Level ' + level + ' Clear!';
   document.getElementById('lcSub').textContent = '현재 점수: ' + score + '점';
   lcOverlay.classList.add('show');
+  document.body.classList.add('no-scroll');
   spawnConfetti();
 
   let countdown = 3;
@@ -1322,6 +1397,7 @@ function levelClear() {
     } else {
       clearInterval(cdInterval);
       lcOverlay.classList.remove('show');
+      document.body.classList.remove('no-scroll');
       // 다음 레벨 시작
       level++;
       applyLevel(level);
@@ -1346,9 +1422,13 @@ function showGameOverScreen() {
   }
   const finalScore = score;
   (async () => {
-    document.getElementById('goLevel').textContent = 'Lv.' + level;
-    document.getElementById('goCount').textContent = finalScore + '점';
-    document.getElementById('goBest').textContent = best + '점';
+    const goLevelBadge = document.getElementById('goLevelBadge');
+    const goCount = document.getElementById('goCount');
+    const goBest = document.getElementById('goBest');
+    const goSubTitle = document.getElementById('goSubTitle');
+    if(goLevelBadge) goLevelBadge.textContent = 'Level ' + level;
+    if(goCount) goCount.textContent = finalScore;
+    if(goBest) goBest.textContent = best;
 
     const nickArea = document.getElementById('goNickname');
     const lbArea = document.getElementById('goLeaderboard');
@@ -1360,20 +1440,24 @@ function showGameOverScreen() {
     const topTen = await isTopTen(finalScore);
     if(topTen && finalScore > 0) {
       document.querySelector('.go-emoji').textContent = '🎉';
-      document.querySelector('.go-title').textContent = '축하합니다! 순위권 진입!';
+      document.querySelector('.go-title').textContent = '축하합니다!';
+      if(goSubTitle) goSubTitle.textContent = '';
+      document.getElementById('goNickSub').textContent = 'TOP 10 순위권에 진입했어요!';
       nickArea.classList.add('show');
       retryBtn.style.display = 'none';
       spawnConfetti();
       document.getElementById('goNickInput').focus();
     } else {
       document.querySelector('.go-emoji').textContent = '💥';
-      document.querySelector('.go-title').textContent = '전부 쏟아졌다! 😱';
+      document.querySelector('.go-title').textContent = '쏟아졌다!';
+      if(goSubTitle) goSubTitle.textContent = 'Level ' + level + '에서 실패';
       const board = await loadLeaderboard();
       renderLeaderboard(board, finalScore, '');
       lbArea.classList.add('show');
       retryBtn.style.display = '';
     }
     goOverlay.classList.add('show');
+    document.body.classList.add('no-scroll');
   })();
 }
 
