@@ -32,6 +32,9 @@ const SPECIAL_EMOJI = [
   {e:'⭐',w:0}, // 별: 골든타임 (창고 전체 별 변환, 100점)
 ];
 const SPECIAL_RATE = 0.15;
+// 랜덤박스
+const MYSTERY_EMOJI = {e:'❓', w:0, special:true, mystery:true};
+const MYSTERY_RATE = 0.08;
 
 // ── 쟁반 SVG 좌표계 상수 ───────────────────────────────
 // SVG viewBox: 35 45 490 330
@@ -232,6 +235,9 @@ function randED() {
   if(currentGiantRate > 0 && Math.random() < currentGiantRate) {
     return GIANT_EMOJI[Math.floor(Math.random()*GIANT_EMOJI.length)];
   }
+  if(Math.random() < MYSTERY_RATE) {
+    return {...MYSTERY_EMOJI};
+  }
   if(Math.random() < SPECIAL_RATE) {
     const pool = SPECIAL_EMOJI.filter(s => s.e !== '⭐' || level >= 3);
     if(pool.length > 0) {
@@ -253,13 +259,13 @@ function addFloorItem() {
   const id = nextId++;
   const el = document.createElement('div');
   const isStar = d.e === '⭐' && d.special;
-  el.className = 'e-chip' + (d.w>=10?' giant':'') + (d.special?' special':'') + ((d.golden||isStar)?' golden':'');
+  el.className = 'e-chip' + (d.w>=10?' giant':'') + (d.special?' special':'') + ((d.golden||isStar)?' golden':'') + (d.mystery?' mystery':'');
   el.dataset.id = id;
   const emojiSpan = document.createTextNode(d.e);
   el.appendChild(emojiSpan);
   const badge = document.createElement('span');
   badge.className = 'pts';
-  badge.textContent = d.golden ? '100' : (d.special ? '★' : toPoints(d.w));
+  badge.textContent = d.golden ? '100' : d.mystery ? '?' : (d.special ? '★' : toPoints(d.w));
   el.appendChild(badge);
   el.addEventListener('mousedown',  ev => startDrag(ev, d, el));
   el.addEventListener('touchstart', ev => startDragTouch(ev, d, el), {passive:false});
@@ -361,9 +367,15 @@ function tryDrop(cx,cy) {
   const sv = clientToSvg(cx,cy);
   if(!isOnTray(sv.x, sv.y)) return false;
   // 특수 이모지는 겹침 체크 무시
-  const isSpecial = dragging.data.e === '💣' || dragging.data.e === '🧊' || dragging.data.e === '🧲' || dragging.data.e === '⭐';
+  const isSpecial = dragging.data.e === '💣' || dragging.data.e === '🧊' || dragging.data.e === '🧲' || dragging.data.e === '⭐' || dragging.data.mystery;
   if(!isSpecial) {
     if(countNearby(sv.x, sv.y) >= MAX_OVERLAP) { showOverlapToast(cx, cy); return false; }
+  }
+  // 랜덤박스: 랜덤 특수효과 발동
+  if(dragging.data.mystery) {
+    removeFloorItem(dragging.sourceEl);
+    mysteryActivate(cx, cy, sv.x, sv.y);
+    return true;
   }
   // 폭탄: 쟁반에 추가하지 않고 바로 폭발
   if(dragging.data.e === '💣') {
@@ -404,6 +416,64 @@ function tryDrop(cx,cy) {
   spawnDropBurst(cx, cy);
   spawnScoreStars(cx, cy, toPoints(dragging.data.w));
   return true;
+}
+
+// ── 랜덤박스 효과 ──────────────────────────────────────────
+const MYSTERY_EFFECTS = [
+  {emoji:'💣', name:'폭탄'},
+  {emoji:'🧊', name:'얼음'},
+  {emoji:'🧲', name:'자석'},
+  {emoji:'⭐', name:'골든타임'},
+];
+function mysteryActivate(cx, cy, svgX, svgY) {
+  const effect = MYSTERY_EFFECTS[Math.floor(Math.random()*MYSTERY_EFFECTS.length)];
+  // 토스트 표시
+  showMysteryToast(cx, cy, effect.emoji, effect.name);
+  // 랜덤박스 열리는 이펙트
+  spawnMysteryBurst(cx, cy);
+  // 약간의 딜레이 후 효과 발동
+  setTimeout(() => {
+    switch(effect.emoji) {
+      case '💣': bombExplode(); break;
+      case '🧊': iceFreeze(cx, cy); break;
+      case '🧲': magnetPull(svgX, svgY, cx, cy); break;
+      case '⭐': starGoldenTime(cx, cy); break;
+    }
+  }, 400);
+}
+function showMysteryToast(cx, cy, emoji, name) {
+  const el = document.createElement('div');
+  el.className = 'mystery-toast';
+  el.innerHTML = `<span style="font-size:1.4rem">${emoji}</span> ${name}!`;
+  document.body.appendChild(el);
+  const rect = el.getBoundingClientRect();
+  const vw = window.innerWidth;
+  let left = cx - rect.width / 2;
+  if(left < 8) left = 8;
+  if(left + rect.width > vw - 8) left = vw - 8 - rect.width;
+  el.style.left = left + 'px';
+  el.style.top = (cy - 50) + 'px';
+  setTimeout(() => el.remove(), 1800);
+}
+function spawnMysteryBurst(cx, cy) {
+  const icons = ['❓','❗','✨','🎲','🎰','💫'];
+  const count = 14;
+  for(let i = 0; i < count; i++) {
+    const el = document.createElement('div');
+    el.className = 'score-star';
+    el.textContent = icons[Math.floor(Math.random() * icons.length)];
+    const angle = (Math.PI * 2 / count) * i + (Math.random() - .5) * .5;
+    const dist = 70 + Math.random() * 100;
+    const tx = Math.cos(angle) * dist;
+    const ty = Math.sin(angle) * dist;
+    const rot = (Math.random() - .5) * 400;
+    const dur = 600 + Math.random() * 500;
+    const delay = Math.random() * 100;
+    const fs = 1.2 + Math.random() * 1.2;
+    el.style.cssText = `left:${cx}px;top:${cy}px;--tx:${tx}px;--ty:${ty}px;--rot:${rot}deg;--dur:${dur}ms;--delay:${delay}ms;--fs:${fs}rem;`;
+    document.body.appendChild(el);
+    el.addEventListener('animationend', () => el.remove());
+  }
 }
 
 // ── 폭탄 폭발 효과: 모든 이모지 제거 + 구름 ─────────────
