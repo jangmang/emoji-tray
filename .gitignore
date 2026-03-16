@@ -1,0 +1,11 @@
+# Capacitor / Node
+mobile/node_modules/
+mobile/android/.gradle/
+mobile/android/app/build/
+mobile/android/build/
+mobile/android/.idea/
+mobile/www/
+
+# 로컬 설정
+*.local
+.DS_Store
