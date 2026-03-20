@@ -353,7 +353,14 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
 }
 .e-chip:hover { background:rgba(255,200,80,.15); transform:scale(1.14); }
 .e-chip.dragging { opacity:.3; transform:scale(.88); }
-.e-chip.giant { font-size:clamp(2.6rem,4.2vw,3.4rem); background:rgba(232,64,64,.12); border-color:rgba(232,64,64,.35); }
+.e-chip.giant { background:rgba(232,64,64,.12); border-color:rgba(232,64,64,.35); }
+.e-chip.coin {
+  background:linear-gradient(135deg,rgba(255,215,0,.15),rgba(255,165,0,.1));
+  border:2px solid rgba(255,215,0,.6);
+  box-shadow:0 0 8px rgba(255,215,0,.3), inset 0 0 6px rgba(255,215,0,.15);
+}
+.e-chip.coin:hover { background:linear-gradient(135deg,rgba(255,215,0,.3),rgba(255,165,0,.25)); transform:scale(1.18); }
+.e-chip.coin .pts { background:linear-gradient(135deg,#ffd700,#ff8c00); color:#fff; }
 .e-chip.special {
   background:linear-gradient(135deg,rgba(138,43,226,.2),rgba(0,200,255,.2));
   border:1.5px solid rgba(138,43,226,.5);
@@ -365,6 +372,18 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
 @keyframes specialPulse {
   0%   { box-shadow:0 0 6px rgba(138,43,226,.3), inset 0 0 6px rgba(0,200,255,.1); }
   100% { box-shadow:0 0 14px rgba(138,43,226,.5), inset 0 0 12px rgba(0,200,255,.25), 0 0 20px rgba(0,200,255,.15); }
+}
+.e-chip.star {
+  background:linear-gradient(135deg,rgba(255,215,0,.3),rgba(255,165,0,.25));
+  border:2px solid rgba(255,215,0,.7);
+  box-shadow:0 0 10px rgba(255,215,0,.4), 0 0 20px rgba(255,165,0,.2), inset 0 0 8px rgba(255,215,0,.2);
+  animation:starPulse 1s ease-in-out infinite alternate;
+}
+.e-chip.star:hover { background:linear-gradient(135deg,rgba(255,215,0,.5),rgba(255,165,0,.4)); transform:scale(1.2); }
+.e-chip.star .pts { background:linear-gradient(135deg,#ffd700,#ff8c00); color:#fff; }
+@keyframes starPulse {
+  0%   { box-shadow:0 0 8px rgba(255,215,0,.3), 0 0 16px rgba(255,165,0,.15); transform:scale(1); }
+  100% { box-shadow:0 0 16px rgba(255,215,0,.6), 0 0 30px rgba(255,165,0,.3), 0 0 40px rgba(255,215,0,.15); transform:scale(1.08); }
 }
 .e-chip .pts {
   position:absolute; bottom:-2px; right:-2px;
@@ -430,6 +449,71 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
 @keyframes goldenShelfPulse {
   0%   { box-shadow:0 0 15px rgba(255,215,0,.15), inset 0 0 10px rgba(255,215,0,.05); }
   100% { box-shadow:0 0 30px rgba(255,215,0,.3), inset 0 0 20px rgba(255,215,0,.1); }
+}
+
+/* 골든타임 안내 토스트 */
+.golden-toast {
+  position:fixed; z-index:9999;
+  background:linear-gradient(135deg,rgba(50,35,10,.95),rgba(30,20,5,.95));
+  color:#FFD700;
+  font-weight:700;
+  padding:20px 36px; border-radius:18px;
+  border:2px solid rgba(255,215,0,.6);
+  box-shadow:0 0 30px rgba(255,215,0,.4), 0 4px 20px rgba(0,0,0,.5);
+  pointer-events:none;
+  font-family:'Noto Sans KR',sans-serif;
+  text-shadow:0 0 10px rgba(255,215,0,.5);
+  text-align:center;
+  opacity:0; transition:opacity .3s;
+}
+.gt-title {
+  font-size:clamp(1.3rem,3.5vw,2rem);
+  margin-bottom:4px;
+}
+.gt-sub {
+  font-size:clamp(0.9rem,2.2vw,1.2rem);
+  color:rgba(255,215,0,.75);
+  margin-bottom:8px;
+}
+.gt-num {
+  font-size:clamp(2.5rem,7vw,4rem);
+  color:#fff;
+  text-shadow:0 0 20px rgba(255,215,0,.9), 0 0 40px rgba(255,165,0,.5);
+  line-height:1;
+  animation:countdownPop 1s ease-out;
+}
+@keyframes countdownPop {
+  0%   { transform:scale(1.5); opacity:.5; }
+  30%  { transform:scale(1); opacity:1; }
+  100% { transform:scale(1); opacity:1; }
+}
+
+/* 창고 골든타임 오버레이 */
+.golden-shelf-overlay {
+  position:absolute; inset:0; z-index:50;
+  display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(135deg,rgba(40,30,5,.92),rgba(25,18,2,.92));
+  border-radius:12px;
+  color:#FFD700;
+  font-size:clamp(1.5rem,4vw,2.5rem);
+  font-weight:900;
+  letter-spacing:0.15em;
+  text-shadow:0 0 20px rgba(255,215,0,.7), 0 0 40px rgba(255,165,0,.4);
+  font-family:'Segoe UI','Arial Black',sans-serif;
+  animation:goldenShelfPulse 2s ease-in-out infinite alternate;
+}
+@keyframes goldenShelfPulse {
+  0%   { text-shadow:0 0 15px rgba(255,215,0,.5), 0 0 30px rgba(255,165,0,.3); }
+  100% { text-shadow:0 0 25px rgba(255,215,0,.9), 0 0 50px rgba(255,165,0,.5), 0 0 70px rgba(255,215,0,.2); }
+}
+
+/* 쟁반 골든 섬광 */
+.golden-flash {
+  animation:goldenFlashAnim .8s ease-in-out infinite alternate !important;
+}
+@keyframes goldenFlashAnim {
+  0%   { opacity:.4; stroke-width:4; }
+  100% { opacity:1; stroke-width:8; }
 }
 
 /* 드래그 고스트 */

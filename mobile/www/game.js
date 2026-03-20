@@ -1,5 +1,7 @@
 // ── 이모지 데이터 ──────────────────────────────────────
 const EMOJI_DATA = [
+  // 100점 (w:0.1) - 가볍지만 고점수 2개
+  {e:'🪙',w:0.1,pts:100},{e:'💰',w:0.1,pts:100},
   // 1점 (w:0.1) - 깃털 4개
   {e:'🦋',w:0.1},{e:'🌈',w:0.1},{e:'💫',w:0.1},{e:'🌸',w:0.1},
   // 5점 (w:0.5) - 가벼운 7개
@@ -29,7 +31,7 @@ const SPECIAL_EMOJI = [
   {e:'💣',w:0}, // 폭탄: 전체 제거 (리셋)
   {e:'🧊',w:0}, // 얼음: 기울기 동결 (방어)
   {e:'🧲',w:0}, // 자석: 주변 끌어당기기
-  {e:'⭐',w:0}, // 별: 골든타임 (창고 전체 별 변환, 100점)
+  {e:'⭐',w:0}, // 별: 골든타임 (쟁반 위 이모지를 별로 변환, 클릭하면 10점)
 ];
 const SPECIAL_RATE = 0.15;
 // 랜덤박스
@@ -47,11 +49,12 @@ const DANGER_WARN = 0.65;
 
 // ── 레벨 시스템 ─────────────────────────────────────────
 const LEVELS = [
-  { goal:100,  autoDrop:10000, floorCount:10, tiltLimit:46,   maxWeight:1.0, giantRate:0    },
-  { goal:300,  autoDrop:10000, floorCount:10, tiltLimit:38,   maxWeight:2.0, giantRate:0    },
-  { goal:600,  autoDrop:10000, floorCount:10, tiltLimit:32, maxWeight:3.0, giantRate:0.05 },
-  { goal:1000, autoDrop:5000,  floorCount:10, tiltLimit:32, maxWeight:5.0, giantRate:0.10 },
-  { goal:Infinity, autoDrop:5000, floorCount:10, tiltLimit:32, maxWeight:10,  giantRate:0.15 },
+  { goal:100,   autoDrop:10000, floorCount:10, tiltLimit:46, maxWeight:1.0, giantRate:0    },
+  { goal:500,   autoDrop:10000, floorCount:10, tiltLimit:38, maxWeight:2.0, giantRate:0    },
+  { goal:1000,  autoDrop:10000, floorCount:10, tiltLimit:32, maxWeight:3.0, giantRate:0.05 },
+  { goal:5000,  autoDrop:5000,  floorCount:10, tiltLimit:32, maxWeight:5.0, giantRate:0.10 },
+  { goal:10000, autoDrop:5000,  floorCount:10, tiltLimit:30, maxWeight:7.0, giantRate:0.12 },
+  { goal:Infinity, autoDrop:5000, floorCount:10, tiltLimit:28, maxWeight:10,  giantRate:0.15 },
 ];
 let level = 1;
 let TILT_LIMIT = 46, FLOOR_COUNT = 10, AUTO_DROP_DELAY = 10000;
@@ -70,7 +73,7 @@ function applyLevel(lv) {
 // ── 상태 ───────────────────────────────────────────────
 let items=[], tiltX=0, tiltY=0, running=false, rafId=null, shakeTimer=0;
 let frozen=false, frozenTimer=null;
-let goldenTime=false, goldenTimer=null, savedFloorData=[];
+let goldenTime=false, goldenTimer=null;
 let score=0, best = parseInt(localStorage.getItem('trayBest5')||'0');
 let floorItems=[], nextId=0, dragging=null;
 
@@ -251,21 +254,21 @@ function randED() {
 
 function addFloorItem() {
   let d = randED();
-  // 골든타임 중이면 새 아이템도 별로 변환
-  if(goldenTime) {
-    savedFloorData.push({e:d.e, w:d.w, special:d.special});
-    d = {...GOLDEN_DATA};
+  // 같은 이모지 2개까지만 허용 (최대 10회 재시도)
+  for(let retry = 0; retry < 10; retry++) {
+    const count = floorItems.filter(f => f.e === d.e).length;
+    if(count < 2) break;
+    d = randED();
   }
   const id = nextId++;
   const el = document.createElement('div');
-  const isStar = d.e === '⭐' && d.special;
-  el.className = 'e-chip' + (d.w>=10?' giant':'') + (d.special?' special':'') + ((d.golden||isStar)?' golden':'') + (d.mystery?' mystery':'');
+  el.className = 'e-chip' + (d.w>=10?' giant':'') + (d.special?' special':'') + (d.mystery?' mystery':'') + (d.e==='⭐'?' star':'') + (d.pts?' coin':'');
   el.dataset.id = id;
   const emojiSpan = document.createTextNode(d.e);
   el.appendChild(emojiSpan);
   const badge = document.createElement('span');
   badge.className = 'pts';
-  badge.textContent = d.golden ? '100' : d.mystery ? '?' : (d.special ? '★' : toPoints(d.w));
+  badge.textContent = d.mystery ? '?' : (d.special ? '★' : (d.pts || toPoints(d.w)));
   el.appendChild(badge);
   el.addEventListener('mousedown',  ev => startDrag(ev, d, el));
   el.addEventListener('touchstart', ev => startDragTouch(ev, d, el), {passive:false});
@@ -364,6 +367,7 @@ function showOverlapToast(cx, cy) {
 }
 
 function tryDrop(cx,cy) {
+  if(goldenCountdownActive || goldenTime) return false;
   const sv = clientToSvg(cx,cy);
   if(!isOnTray(sv.x, sv.y)) return false;
   // 특수 이모지는 겹침 체크 무시
@@ -395,26 +399,18 @@ function tryDrop(cx,cy) {
     magnetPull(sv.x, sv.y, cx, cy);
     return true;
   }
-  // 골든타임 별: 쟁반에 남지 않고 100점 획득 (골든타임 발동보다 먼저 체크)
-  if(dragging.data.golden) {
-    score += 100;
-    removeFloorItem(dragging.sourceEl);
-    spawnDropBurst(cx, cy);
-    spawnScoreStars(cx, cy, 100);
-    lastDropTime = performance.now();
-    return true;
-  }
   // 별: 쟁반에 추가하지 않고 골든타임 발동
   if(dragging.data.e === '⭐') {
     removeFloorItem(dragging.sourceEl);
     starGoldenTime(cx, cy);
     return true;
   }
+  const dropPts = dragging.data.pts || toPoints(dragging.data.w);
   items.push({sx:sv.x, sy:sv.y, e:dragging.data.e, w:dragging.data.w, dropT:performance.now()});
-  score += toPoints(dragging.data.w);
+  score += dropPts;
   removeFloorItem(dragging.sourceEl);
   spawnDropBurst(cx, cy);
-  spawnScoreStars(cx, cy, toPoints(dragging.data.w));
+  spawnScoreStars(cx, cy, dropPts);
   return true;
 }
 
@@ -675,67 +671,190 @@ function spawnMagnetBurst(cx, cy) {
   }
 }
 
-// ── 별 골든타임: 5초간 창고 전체 별 변환 ─────────────────
-const GOLDEN_DURATION = 5000;
-const GOLDEN_DATA = {e:'⭐', w:0, special:true, golden:true};
+// ── 별 골든타임: 쟁반 위 이모지를 별로 변환, 클릭하면 10점 ─────
+const GOLDEN_DURATION = 10000;
+
+let goldenCountdownActive = false;
 
 function starGoldenTime(screenCx, screenCy) {
+  // 쟁반에 이모지가 없으면 무시
+  if(items.length === 0) return;
+  // 카운트다운 중이면 무시
+  if(goldenCountdownActive) return;
   // 이미 골든타임 중이면 타이머 리셋
   if(goldenTimer) { clearTimeout(goldenTimer); }
-
-  goldenTime = true;
 
   // 별 퍼지기 이펙트
   spawnGoldenBurst(screenCx, screenCy);
 
-  // 현재 창고 데이터 저장 후 골든 별로 재구성
-  savedFloorData = floorItems.map(f => ({e:f.e, w:f.w, special:f.special}));
-  rebuildFloorGolden();
+  // 창고 위에 골든타임 오버레이
+  showGoldenShelfOverlay();
 
-  // 창고 골든 테두리
-  floorShelf.classList.add('golden-time');
-
-  // 자동드롭 타이머 리셋 (골든타임 동안 여유 확보)
+  // 카운트다운 중 기울기 고정 + 자동드롭 정지
+  tiltX = 0; tiltY = 0;
+  trayGroup.style.transform = 'rotateX(0deg) rotateY(0deg)';
   lastDropTime = performance.now();
 
-  // 5초 후 해제
-  goldenTimer = setTimeout(() => {
-    endGoldenTime();
-  }, GOLDEN_DURATION);
-}
+  // 3초 카운트다운 후 골든타임 시작
+  showGoldenCountdown(() => {
+    if(!running) return;
+    goldenTime = true;
 
-function rebuildFloorGolden() {
-  floorShelf.innerHTML = ''; floorItems = [];
-  const count = FLOOR_COUNT;
-  for(let i = 0; i < count; i++) {
-    const d = {e:'⭐', w:0, special:true, golden:true};
-    const id = nextId++;
-    const el = document.createElement('div');
-    el.className = 'e-chip special golden';
-    el.dataset.id = id;
-    el.appendChild(document.createTextNode('⭐'));
-    const badge = document.createElement('span');
-    badge.className = 'pts';
-    badge.textContent = '100';
-    el.appendChild(badge);
-    el.addEventListener('mousedown', ev => startDrag(ev, d, el));
-    el.addEventListener('touchstart', ev => startDragTouch(ev, d, el), {passive:false});
-    floorShelf.appendChild(el);
-    floorItems.push({...d, id, el});
-  }
+    // 쟁반 위 이모지를 전부 별로 변환 (20% 확률로 🌟 100점)
+    items.forEach(it => {
+      it.originalE = it.e;
+      it.originalW = it.w;
+      const isSuperStar = Math.random() < 0.2;
+      it.e = isSuperStar ? '🌟' : '⭐';
+      it.goldenScore = isSuperStar ? 100 : 10;
+      it.golden = true;
+    });
+
+    // 쟁반 골든 오버레이 (노란 섬광)
+    dropHighlight.setAttribute('stroke', 'rgba(255,215,0,0.8)');
+    dropHighlight.setAttribute('stroke-width', '6');
+    dropHighlight.setAttribute('opacity', '1');
+    dropHighlight.classList.add('golden-flash');
+
+    // 쟁반 골든 테두리
+    floorShelf.classList.add('golden-time');
+
+    // 기울기 0으로 리셋 (3D transform 왜곡 제거 → 터치 좌표 정확)
+    tiltX = 0; tiltY = 0;
+    trayGroup.style.transform = 'rotateX(0deg) rotateY(0deg)';
+
+    // 자동드롭 타이머 리셋 (골든타임 동안 여유 확보)
+    lastDropTime = performance.now();
+
+    // 5초 후 해제
+    goldenTimer = setTimeout(() => {
+      endGoldenTime();
+    }, GOLDEN_DURATION);
+  });
 }
 
 function endGoldenTime() {
   goldenTime = false;
   goldenTimer = null;
   floorShelf.classList.remove('golden-time');
+  dropHighlight.setAttribute('opacity', '0');
+  dropHighlight.setAttribute('stroke', 'rgba(244,165,53,0)');
+  dropHighlight.setAttribute('stroke-width', '4');
+  dropHighlight.classList.remove('golden-flash');
+  hideGoldenShelfOverlay();
 
-  // 창고를 일반 이모지로 재구성
-  floorShelf.innerHTML = ''; floorItems = [];
-  for(let i = 0; i < FLOOR_COUNT; i++) {
-    addFloorItem();
+  // 수확되지 않은 별을 원래 이모지로 복원
+  items.forEach(it => {
+    if(it.golden) {
+      it.e = it.originalE;
+      it.w = it.originalW;
+      delete it.golden;
+      delete it.goldenScore;
+      delete it.originalE;
+      delete it.originalW;
+    }
+  });
+}
+
+function showGoldenCountdown(onComplete) {
+  goldenCountdownActive = true;
+  const el = document.createElement('div');
+  el.className = 'golden-toast countdown';
+  el.innerHTML = '<div class="gt-title">⭐ 골든타임</div><div class="gt-sub">별을 터치하세요</div><div class="gt-num">3</div>';
+  document.body.appendChild(el);
+  requestAnimationFrame(() => {
+    el.style.left = (window.innerWidth / 2 - el.offsetWidth / 2) + 'px';
+    el.style.top = '18%';
+    el.style.opacity = '1';
+  });
+
+  const numEl = el.querySelector('.gt-num');
+  let count = 3;
+  const interval = setInterval(() => {
+    count--;
+    if(count > 0) {
+      numEl.textContent = count;
+      numEl.style.animation = 'none';
+      numEl.offsetHeight; // reflow
+      numEl.style.animation = '';
+    } else {
+      clearInterval(interval);
+      el.style.opacity = '0';
+      goldenCountdownActive = false;
+      onComplete();
+      setTimeout(() => el.remove(), 400);
+    }
+  }, 1000);
+}
+
+function showGoldenClearToast() {
+  const el = document.createElement('div');
+  el.className = 'golden-toast';
+  el.innerHTML = '<div class="gt-title">⭐ 잘했어요!</div><div class="gt-sub">모든 별을 수확했습니다</div>';
+  document.body.appendChild(el);
+  requestAnimationFrame(() => {
+    el.style.left = (window.innerWidth / 2 - el.offsetWidth / 2) + 'px';
+    el.style.top = '18%';
+    el.style.opacity = '1';
+  });
+  setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 400); }, 1500);
+}
+
+let goldenShelfOverlay = null;
+function showGoldenShelfOverlay() {
+  if(goldenShelfOverlay) return;
+  const el = document.createElement('div');
+  el.className = 'golden-shelf-overlay';
+  el.textContent = 'GOLDEN TIME';
+  floorShelf.style.position = 'relative';
+  floorShelf.appendChild(el);
+  goldenShelfOverlay = el;
+}
+function hideGoldenShelfOverlay() {
+  if(goldenShelfOverlay) {
+    goldenShelfOverlay.remove();
+    goldenShelfOverlay = null;
   }
-  savedFloorData = [];
+}
+
+// 쟁반 위 골든 별 클릭 수확 (기울기 0 상태에서 SVG 좌표 직접 비교)
+function harvestGoldenStar(cx, cy) {
+  if(!goldenTime || !running) return false;
+  const sv = clientToSvg(cx, cy);
+  const goldenFs = emojiSize(0.1);
+  const sceneRect = scene.getBoundingClientRect();
+  // 픽셀 히트 반경을 SVG 단위로 변환 (넉넉하게)
+  const hitRadius = (goldenFs * 1.8) / sceneRect.width * SVG_W;
+
+  let closest = null, closestDist = Infinity;
+  for(let i = 0; i < items.length; i++) {
+    const it = items[i];
+    if(!it.golden) continue;
+    const dx = it.sx - sv.x, dy = it.sy - sv.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if(dist < hitRadius && dist < closestDist) { closestDist = dist; closest = i; }
+  }
+
+  if(closest === null) return false;
+
+  // 수확!
+  const it = items[closest];
+  const pts = it.goldenScore || 10;
+  score += pts;
+  items.splice(closest, 1);
+
+  // 이펙트
+  spawnDropBurst(cx, cy);
+  spawnScoreStars(cx, cy, pts);
+
+  // 모든 골든 별이 수확되면 조기 종료
+  if(!items.some(it => it.golden)) {
+    if(goldenTimer) { clearTimeout(goldenTimer); }
+    endGoldenTime();
+    showGoldenClearToast();
+  }
+
+  return true;
 }
 
 function spawnGoldenBurst(cx, cy) {
@@ -842,8 +961,9 @@ function dropBounce(t) {
 function drawEmojis() {
   ctx.clearRect(0,0,canvas.width,canvas.height);
   const now = performance.now();
+  const goldenFs = emojiSize(0.1); // 골든 별 통일 크기 (작게)
   items.forEach(it=>{
-    const fs = emojiSize(it.w);
+    const fs = it.golden ? goldenFs : emojiSize(it.w);
     const sc = svgToScene(it.sx, it.sy);
 
     // 바운스 애니메이션
@@ -856,9 +976,23 @@ function drawEmojis() {
     ctx.scale(scX, scY);
     ctx.font=`${fs}px serif`;
     ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.shadowColor='rgba(0,0,0,.6)';
-    ctx.shadowBlur=Math.max(6,fs*.22);
-    ctx.shadowOffsetY=Math.max(2,fs*.07);
+    // 골든 별 글로우 + 크기 펄스 효과
+    if(it.golden) {
+      const pulse = 1 + 0.12 * Math.sin(now * 0.006);
+      ctx.scale(pulse, pulse);
+      const glow = 0.7 + 0.3 * Math.sin(now * 0.008);
+      ctx.shadowColor=`rgba(255,215,0,${glow})`;
+      ctx.shadowBlur=fs*0.8;
+      ctx.shadowOffsetY=0;
+      // 이중 그림자로 섬광 느낌
+      ctx.fillText(it.e, 0, 0);
+      ctx.shadowBlur=fs*1.5;
+      ctx.shadowColor=`rgba(255,200,0,${glow*0.4})`;
+    } else {
+      ctx.shadowColor='rgba(0,0,0,.6)';
+      ctx.shadowBlur=Math.max(6,fs*.22);
+      ctx.shadowOffsetY=Math.max(2,fs*.07);
+    }
     ctx.fillText(it.e, 0, 0);
     ctx.restore();
   });
@@ -874,7 +1008,7 @@ function init() {
   frostFlakes.forEach(el=>el.remove()); frostFlakes=[];
   document.getElementById('frostOverlay').classList.remove('active');
   goldenTime=false; if(goldenTimer){clearTimeout(goldenTimer);goldenTimer=null;}
-  savedFloorData=[]; floorShelf.classList.remove('golden-time');
+  floorShelf.classList.remove('golden-time');
   startOverlay.style.display='none';
   goOverlay.classList.remove('show');
   document.getElementById('levelClearOverlay').classList.remove('show');
@@ -950,7 +1084,7 @@ function spawnFallingEmoji(it) {
 
 // ── 자동 드롭 (10초 무행동 시) ────────────────────────
 function autoDrop() {
-  if(!running || dragging || floorItems.length===0) return;
+  if(!running || dragging || goldenCountdownActive || goldenTime || floorItems.length===0) return;
   const normalItems = floorItems.filter(f => !f.special && f.w < 10);
   if(normalItems.length === 0) return;
   const fi = normalItems[Math.floor(Math.random()*normalItems.length)];
@@ -975,6 +1109,12 @@ function autoDrop() {
 }
 
 function updateCountdown() {
+  // 골든타임/카운트다운 중 타이머 숨김
+  if(goldenTime || goldenCountdownActive) {
+    countdownTimer.classList.remove('active');
+    return;
+  }
+
   const elapsed = performance.now() - lastDropTime;
   const remaining = Math.max(0, AUTO_DROP_DELAY - elapsed);
   const secs = Math.ceil(remaining / 1000);
@@ -999,8 +1139,8 @@ function loop() {
   if(performance.now() - lastDropTime > AUTO_DROP_DELAY) autoDrop();
 
   let danger = 0;
-  if(frozen) {
-    // 동결 중: 기울기 변화 없음, 미끄러짐 없음, 게임오버 없음
+  if(frozen || goldenTime || goldenCountdownActive) {
+    // 동결/골든타임 중: 기울기 변화 없음, 미끄러짐 없음, 게임오버 없음
     trayGroup.style.transform = `rotateX(${-tiltX}deg) rotateY(${tiltY}deg)`;
     const mag = Math.sqrt(tiltX**2+tiltY**2);
     danger = Math.min(1, mag/TILT_LIMIT);
@@ -1041,7 +1181,7 @@ function loop() {
 function updateHUD(sc, danger) {
   const pct = Math.round(danger*100);
   document.getElementById('countVal').textContent = sc;
-  document.getElementById('levelVal').textContent = level;
+  document.getElementById('levelVal').textContent = level >= LEVELS.length ? 'MAX' : level;
   document.getElementById('goalVal').textContent = currentGoal === Infinity ? '∞' : currentGoal;
   const de = document.getElementById('dangerVal');
   de.textContent=pct+'%'; de.className='danger-pct'+(danger>DANGER_WARN?' danger':'');
@@ -1121,7 +1261,7 @@ function levelClear() {
       frostFlakes.forEach(el=>el.remove()); frostFlakes=[];
       document.getElementById('frostOverlay').classList.remove('active');
       goldenTime=false; if(goldenTimer){clearTimeout(goldenTimer);goldenTimer=null;}
-      savedFloorData=[]; floorShelf.classList.remove('golden-time');
+      floorShelf.classList.remove('golden-time');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       trayGroup.style.transition = '';
       trayGroup.style.transform = '';
@@ -1145,7 +1285,8 @@ function showGameOverScreen() {
     const goCount = document.getElementById('goCount');
     const goBest = document.getElementById('goBest');
     const goSubTitle = document.getElementById('goSubTitle');
-    if(goLevelBadge) goLevelBadge.textContent = 'Level ' + level;
+    const lvlText = level >= LEVELS.length ? 'Level MAX' : 'Level ' + level;
+    if(goLevelBadge) goLevelBadge.textContent = lvlText;
     if(goCount) goCount.textContent = finalScore;
     if(goBest) goBest.textContent = best;
 
@@ -1169,7 +1310,7 @@ function showGameOverScreen() {
     } else {
       document.querySelector('.go-emoji').textContent = '💥';
       document.querySelector('.go-title').textContent = '쏟아졌다!';
-      if(goSubTitle) goSubTitle.textContent = 'Level ' + level + '에서 실패';
+      if(goSubTitle) goSubTitle.textContent = lvlText + '에서 실패';
       const board = await loadLeaderboard();
       renderLeaderboard(board, finalScore, '');
       lbArea.classList.add('show');
@@ -1245,6 +1386,36 @@ function gameOver() {
 
   setTimeout(() => showGameOverScreen(), 1100);
 }
+
+// ── 쟁반 클릭(골든타임 별 수확) ─────────────────────────
+// 골든타임 중 캔버스에서 직접 이벤트를 받아 렌더링 좌표와 100% 일치하는 히트 판정
+let tapStartX = 0, tapStartY = 0;
+dropZone.addEventListener('mousemove', () => {
+  dropZone.style.cursor = (goldenTime && running) ? 'pointer' : '';
+});
+dropZone.addEventListener('mousedown', e => {
+  tapStartX = e.clientX; tapStartY = e.clientY;
+});
+dropZone.addEventListener('mouseup', e => {
+  if(!goldenTime || dragging) return;
+  const dx = e.clientX - tapStartX, dy = e.clientY - tapStartY;
+  if(dx*dx + dy*dy < 100) {
+    harvestGoldenStar(e.clientX, e.clientY);
+  }
+});
+dropZone.addEventListener('touchstart', e => {
+  tapStartX = e.touches[0].clientX; tapStartY = e.touches[0].clientY;
+  if(goldenTime && running) e.preventDefault();
+}, {passive:false});
+dropZone.addEventListener('touchend', e => {
+  if(!goldenTime || dragging) return;
+  const cx = e.changedTouches[0].clientX, cy = e.changedTouches[0].clientY;
+  const dx = cx - tapStartX, dy = cy - tapStartY;
+  if(dx*dx + dy*dy < 100) {
+    e.preventDefault();
+    harvestGoldenStar(cx, cy);
+  }
+});
 
 // ── 이벤트 ─────────────────────────────────────────────
 document.getElementById('startBtn').addEventListener('click', init);
