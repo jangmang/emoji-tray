@@ -1042,9 +1042,11 @@ function slideEmojis(danger) {
     const dx = (it.sx - TRAY_CX) / TRAY_RX;
     const dy = (it.sy - TRAY_CY) / TRAY_RY;
     if(dx*dx + dy*dy > 1.05) {
-      // 화면에서 떨어지는 애니메이션
+      // 이모지가 바닥에 떨어지면 게임오버
       spawnFallingEmoji(it);
       items.splice(i, 1);
+      gameOver();
+      return;
     }
   }
 }
