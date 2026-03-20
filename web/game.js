@@ -90,12 +90,12 @@ async function loadLeaderboard() {
     return list;
   } catch(e) { console.warn('랭킹 로드 실패:', e); return []; }
 }
-async function saveScore(name, sc) {
+async function saveScore(name, sc, email) {
   try {
     const fb = window._fb; if(!fb) return;
-    await fb.addDoc(fb.collection(fb.db,'rankings'), {
-      name: name, score: sc, date: new Date().toISOString()
-    });
+    const data = { name: name, score: sc, date: new Date().toISOString() };
+    if(email) data.email = email;
+    await fb.addDoc(fb.collection(fb.db,'rankings'), data);
   } catch(e) { console.warn('점수 저장 실패:', e); }
 }
 async function isTopTen(sc) {
@@ -1298,6 +1298,7 @@ function showGameOverScreen() {
     nickArea.classList.remove('show');
     lbArea.classList.remove('show');
     document.getElementById('goNickInput').value = '';
+    document.getElementById('goEmailInput').value = '';
 
     const topTen = await isTopTen(finalScore);
     if(topTen && finalScore > 0) {
@@ -1426,14 +1427,21 @@ document.getElementById('startBtn').addEventListener('click', init);
 document.getElementById('goNickSave').addEventListener('click', async ()=>{
   const input = document.getElementById('goNickInput');
   const name = input.value.trim();
-  if(!name) { input.focus(); return; }
+  if(!name) { alert('닉네임을 입력해주세요.'); input.focus(); return; }
+  const emailInput = document.getElementById('goEmailInput');
+  const email = emailInput.value.trim();
+  if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    alert('올바른 이메일 주소를 입력해주세요.');
+    emailInput.focus();
+    return;
+  }
 
   const btn = document.getElementById('goNickSave');
   btn.textContent = '저장 중...';
   btn.disabled = true;
 
   const finalScore = parseInt(document.getElementById('goCount').textContent) || 0;
-  await saveScore(name, finalScore);
+  await saveScore(name, finalScore, email);
 
   document.getElementById('goNickname').classList.remove('show');
 
@@ -1446,9 +1454,15 @@ document.getElementById('goNickSave').addEventListener('click', async ()=>{
   btn.disabled = false;
 });
 
-// Enter 키로도 닉네임 저장
+// Enter 키로도 저장
 document.getElementById('goNickInput').addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter') document.getElementById('goEmailInput').focus();
+});
+document.getElementById('goEmailInput').addEventListener('keydown', (e)=>{
   if(e.key === 'Enter') document.getElementById('goNickSave').click();
+});
+document.getElementById('goEmailInput').addEventListener('input', (e)=>{
+  e.target.value = e.target.value.replace(/[^a-zA-Z0-9@._\-+]/g, '');
 });
 
 // 건너뛰기 (저장 않고 랭킹만 보기)
