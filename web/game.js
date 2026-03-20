@@ -1299,6 +1299,8 @@ function showGameOverScreen() {
     lbArea.classList.remove('show');
     document.getElementById('goNickInput').value = '';
     document.getElementById('goEmailInput').value = '';
+    document.getElementById('privacyAgree').checked = false;
+    document.getElementById('privacySection').classList.remove('show');
 
     const topTen = await isTopTen(finalScore);
     if(topTen && finalScore > 0) {
@@ -1435,6 +1437,10 @@ document.getElementById('goNickSave').addEventListener('click', async ()=>{
     emailInput.focus();
     return;
   }
+  if(email && !document.getElementById('privacyAgree').checked) {
+    alert('이메일을 등록하려면 개인정보 수집 및 이용에 동의해주세요.');
+    return;
+  }
 
   const btn = document.getElementById('goNickSave');
   btn.textContent = '저장 중...';
@@ -1463,6 +1469,9 @@ document.getElementById('goEmailInput').addEventListener('keydown', (e)=>{
 });
 document.getElementById('goEmailInput').addEventListener('input', (e)=>{
   e.target.value = e.target.value.replace(/[^a-zA-Z0-9@._\-+]/g, '');
+  const section = document.getElementById('privacySection');
+  if(e.target.value.trim()) section.classList.add('show');
+  else { section.classList.remove('show'); document.getElementById('privacyAgree').checked = false; }
 });
 
 // 건너뛰기 (저장 않고 랭킹만 보기)

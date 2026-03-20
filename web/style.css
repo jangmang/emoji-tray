@@ -246,6 +246,34 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
 .btn-skip:hover { border-color:rgba(255,255,255,.4); transform:scale(1.06); }
 .btn-skip:active { transform:scale(.95); }
 
+/* 개인정보 동의 */
+.privacy-section {
+  display:none; width:100%; max-width:320px; margin:0.3rem auto;
+}
+.privacy-section.show { display:block; }
+.privacy-box {
+  background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.15);
+  border-radius:10px; padding:0.6rem 0.8rem; text-align:left;
+}
+.privacy-title {
+  font-size:0.75rem; font-weight:700; color:var(--accent);
+  margin-bottom:0.3rem;
+}
+.privacy-content {
+  max-height:80px; overflow-y:auto; font-size:0.65rem; color:rgba(255,255,255,.7);
+  line-height:1.5; margin-bottom:0.4rem; padding-right:0.3rem;
+}
+.privacy-content p { margin:0 0 0.2rem; }
+.privacy-content::-webkit-scrollbar { width:4px; }
+.privacy-content::-webkit-scrollbar-thumb { background:rgba(255,255,255,.2); border-radius:2px; }
+.privacy-check {
+  display:flex; align-items:center; gap:0.4rem; cursor:pointer;
+  font-size:0.72rem; color:rgba(255,255,255,.85);
+}
+.privacy-check input[type="checkbox"] {
+  width:16px; height:16px; accent-color:var(--accent); cursor:pointer;
+}
+
 /* 랭킹 보드 */
 .go-leaderboard {
   display:none; flex-direction:column; align-items:center;
@@ -320,6 +348,17 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
   font-size:clamp(.75rem,1.2vw,.85rem); font-weight:700; color:rgba(255,200,100,.8);
   text-align:center; margin-bottom:8px; letter-spacing:.5px;
 }
+.special-toggle { cursor:pointer; }
+.special-toggle > summary {
+  list-style:none; cursor:pointer; margin-bottom:0;
+}
+.special-toggle > summary::-webkit-details-marker { display:none; }
+.special-toggle > summary::after {
+  content:'▼'; font-size:.6rem; margin-left:.4rem; opacity:.5;
+  display:inline-block;
+}
+.special-toggle[open] > summary::after { transform:rotate(180deg); }
+.special-toggle[open] > summary { margin-bottom:8px; }
 .start-special-list { display:flex; flex-direction:column; gap:5px; }
 .start-special-item {
   display:flex; align-items:center; gap:8px; font-size:clamp(.72rem,1.1vw,.82rem);

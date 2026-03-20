@@ -1440,8 +1440,7 @@ document.getElementById('goNickSave').addEventListener('click', async ()=>{
   btn.textContent = '저장 중...';
   btn.disabled = true;
 
-  const finalScore = parseInt(document.getElementById('goCount').textContent) || 0;
-  await saveScore(name, finalScore, email);
+  await saveScore(name, score, email);
 
   document.getElementById('goNickname').classList.remove('show');
 
