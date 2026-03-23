@@ -10,8 +10,9 @@ body {
   background:var(--bg);
   display:flex; flex-direction:column; align-items:center;
   font-family:'Noto Sans KR',sans-serif;
-  overflow-x:hidden; padding:16px 16px 28px;
+  overflow:hidden; padding:8px 8px 0;
   position:relative; user-select:none;
+  height:100dvh; height:100vh;
 }
 body::before {
   content:''; position:fixed; inset:0; pointer-events:none;
@@ -21,19 +22,19 @@ body::before {
 }
 
 .game-wrap {
-  width:100%; max-width:900px;
+  width:100%; max-width:900px; height:100%;
   display:flex; flex-direction:column; align-items:center;
-  position:relative; z-index:1;
+  position:relative; z-index:1; overflow:hidden;
 }
 
 /* 상단 헤더: 제목 + HUD + 바를 한 줄로 */
 .top-header {
   width:100%; max-width:900px;
-  display:flex; align-items:center; justify-content:center; gap:clamp(.8rem,2vw,2rem);
-  margin-bottom:.5rem; flex-wrap:wrap;
+  display:flex; align-items:center; justify-content:center; gap:clamp(.4rem,1.5vw,1.2rem);
+  margin-bottom:4px; flex-wrap:wrap; flex-shrink:0; padding-top:10px;
 }
 .title-group { text-align:center; flex-shrink:0; }
-h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:var(--accent); text-shadow:0 2px 8px rgba(0,0,0,.5); margin-bottom:0; line-height:1.1; }
+h1 { font-family:'Gaegu',cursive; font-size:clamp(1.2rem,3vw,2rem); color:var(--accent); text-shadow:0 2px 8px rgba(0,0,0,.5); margin-bottom:0; line-height:1.1; }
 
 /* HUD */
 .hud {
@@ -42,7 +43,7 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
   border-radius:10px; overflow:hidden;
 }
 .hud-item {
-  text-align:center; padding:6px 12px; min-width:68px;
+  text-align:center; padding:4px 8px; min-width:56px;
   position:relative;
 }
 .hud-item + .hud-item::before {
@@ -78,15 +79,14 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
 .danger-fill { height:100%; border-radius:4px; transition:width .2s,background .2s; }
 
 /* 레이아웃 - 항상 1열 (세로 배치) */
-.main-area { display:flex; flex-direction:column; align-items:center; gap:16px; width:100%; position:relative; }
+.main-area { display:flex; flex-direction:column; align-items:center; gap:8px; width:100%; position:relative; flex:1; min-height:0; }
 
 /* ── 씬 & 쟁반 ── */
-.scene-wrap { perspective:1000px; position:relative; flex-shrink:0; width:100%; }
+.scene-wrap { perspective:1000px; position:relative; flex:1; width:100%; min-height:0; display:flex; align-items:center; justify-content:center; }
 
-/* 씬 크기 - 쟁반에 딱 맞게 */
+/* 씬 크기 - 가로 기준 비율 고정, 세로 줄어들어도 축소 안 함 (창고와 겹침 허용) */
 .scene {
-  width: 100%;
-  aspect-ratio: 490 / 330;
+  width: 100%; aspect-ratio: 490 / 330;
   position:relative; transform-style:preserve-3d;
 }
 
@@ -285,7 +285,7 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
 
 /* 시작 오버레이 - main-area 전체를 덮음 */
 .start-overlay {
-  position:absolute; left:0; right:0; top:0; min-height:100vh;
+  position:fixed; inset:0;
   display:flex; flex-direction:column; align-items:center; justify-content:center;
   background:radial-gradient(ellipse at 50% 40%, rgba(40,25,8,.92), rgba(10,5,0,.97));
   border-radius:20px; gap:.6rem; padding:1.5rem 1rem;
@@ -348,16 +348,16 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
 .btn:active { transform:scale(.95); }
 
 /* 창고 */
-.floor-wrap { max-width:500px; min-width:200px; width:100%;}
-.floor-label { font-size:.7rem; color:var(--muted); letter-spacing:.18em; text-transform:uppercase; text-align:center; margin-top:10px; }
+.floor-wrap { max-width:600px; min-width:200px; width:100%; flex-shrink:0; padding-bottom:10px; }
+.floor-label { font-size:.65rem; color:var(--muted); letter-spacing:.18em; text-transform:uppercase; text-align:center; margin-bottom:10px; }
 .floor-shelf {
   background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07);
-  border-radius:14px; padding:2%;
-  display:grid; grid-template-columns:repeat(5, 1fr); gap:2%;
+  border-radius:14px; padding:2% 3%;
+  display:grid; grid-template-columns:repeat(5, 1fr); gap:3%;
 }
 .e-chip {
-  font-size:clamp(1.8rem,3.2vw,2.4rem); line-height:1; cursor:grab;
-  padding:8% 0; border-radius:10px;
+  font-size:clamp(2rem,4.5vw,2.8rem); line-height:1; cursor:grab;
+  padding:10% 0; border-radius:10px;
   background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1);
   transition:transform .12s,background .12s,opacity .12s;
   position:relative; text-align:center;
@@ -558,6 +558,15 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
 @media (max-width:600px) {
   .start-overlay {justify-content: flex-start;}
   .countdown-timer {right:16px;}
+  .top-header { gap:.3rem; margin-bottom:2px; }
+  h1 { font-size:1.1rem; }
+  .hud-item { padding:3px 6px; min-width:48px; }
+  .hud-label { font-size:.65rem; }
+  .hud-value { font-size:.9rem; }
+  .bars { width:min(200px,35vw); gap:4px; }
+  .danger-pct { font-size:.9rem; }
+  .main-area { gap:6px; }
+  .floor-label { margin-top:2px; font-size:.6rem; }
 }
 .countdown-timer.active { display:block; }
 .countdown-timer svg { width:100%; height:100%; transform:rotate(-90deg); }
