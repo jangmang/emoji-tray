@@ -226,8 +226,7 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
   font-family:'Noto Sans KR',sans-serif; font-size:0.9rem;
   outline:none; transition:border-color .2s;
 }
-.go-nickname input[type="text"],
-.go-nickname input[type="email"] { width:220px; }
+.go-nickname input { width:140px; }
 .go-nickname input:focus { border-color:var(--accent); }
 .go-nickname input::placeholder { color:rgba(26,18,8,.5); }
 .btn-save {
@@ -320,6 +319,17 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
   font-size:clamp(.75rem,1.2vw,.85rem); font-weight:700; color:rgba(255,200,100,.8);
   text-align:center; margin-bottom:8px; letter-spacing:.5px;
 }
+.special-toggle { cursor:pointer; }
+.special-toggle > summary {
+  list-style:none; cursor:pointer; margin-bottom:0;
+}
+.special-toggle > summary::-webkit-details-marker { display:none; }
+.special-toggle > summary::after {
+  content:'▼'; font-size:.6rem; margin-left:.4rem; opacity:.5;
+  display:inline-block;
+}
+.special-toggle[open] > summary::after { transform:rotate(180deg); }
+.special-toggle[open] > summary { margin-bottom:8px; }
 .start-special-list { display:flex; flex-direction:column; gap:5px; }
 .start-special-item {
   display:flex; align-items:center; gap:8px; font-size:clamp(.72rem,1.1vw,.82rem);

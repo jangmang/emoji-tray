@@ -210,22 +210,21 @@
     <div class="start-special-title">게임 방법</div>
     <div class="start-special-list">
       <div class="start-special-item"><span class="start-special-icon">👆</span><span class="start-special-desc">이모지를 드래그해서 쟁반 위에 올리기</span></div>
-      <div class="start-special-item"><span class="start-special-icon">⚖️</span><span class="start-special-desc">쟁반의 균형을 유지하기</span></div>
-      <div class="start-special-item"><span class="start-special-icon">💥</span><span class="start-special-desc">쟁반이 뒤집히면 게임 오버</span></div>
+      <div class="start-special-item"><span class="start-special-icon">💥</span><span class="start-special-desc">이모지가 떨어지면 게임 오버</span></div>
       <div class="start-special-item"><span class="start-special-icon">🏆</span><span class="start-special-desc">높은 점수로 TOP 10 랭커에 올라가기</span></div>
     </div>
   </div>
 
-  <div class="start-overlay-special">
-    <div class="start-special-title">특수 이모지</div>
+  <details class="start-overlay-special special-toggle">
+    <summary class="start-special-title">특수 이모지 설명</summary>
     <div class="start-special-list">
       <div class="start-special-item"><span class="start-special-icon">💣</span><span class="start-special-desc">폭탄 — 쟁반 위 이모지 전부 제거</span></div>
       <div class="start-special-item"><span class="start-special-icon">🧊</span><span class="start-special-desc">얼음 — 기울기 잠시 동결</span></div>
       <div class="start-special-item"><span class="start-special-icon">🧲</span><span class="start-special-desc">자석 — 주변 이모지를 끌어당김</span></div>
-      <div class="start-special-item"><span class="start-special-icon">⭐</span><span class="start-special-desc">별 — 쟁반 이모지가 별로! 클릭하면 10점</span></div>
+      <div class="start-special-item"><span class="start-special-icon">⭐</span><span class="start-special-desc">별 — 쟁반 위 별을 클릭하면 높은점수 획득</span></div>
       <div class="start-special-item"><span class="start-special-icon">❓</span><span class="start-special-desc">랜덤박스 — 특수효과가 랜덤 발동!</span></div>
     </div>
-  </div>
+  </details>
   
 </div>
 
@@ -256,14 +255,9 @@
   <div class="go-nickname" id="goNickname">
     <div class="go-nickname-trophy">🏆</div>
     <div class="go-nickname-sub" id="goNickSub"></div>
-    <div class="go-nickname-title">닉네임과 이메일을 입력하세요</div>
+    <div class="go-nickname-title">저장할 닉네임을 입력하세요</div>
     <div class="go-nickname-row">
       <input type="text" id="goNickInput" maxlength="8" placeholder="닉네임" autocomplete="off">
-    </div>
-    <div class="go-nickname-row">
-      <input type="email" id="goEmailInput" placeholder="이메일 주소(선택)" autocomplete="off">
-    </div>
-    <div class="go-nickname-row">
       <button class="btn-save" id="goNickSave">저장</button>
       <button class="btn-skip" id="goNickSkip">건너뛰기</button>
     </div>

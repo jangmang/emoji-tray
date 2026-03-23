@@ -226,8 +226,7 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
   font-family:'Noto Sans KR',sans-serif; font-size:0.9rem;
   outline:none; transition:border-color .2s;
 }
-.go-nickname input[type="text"],
-.go-nickname input[type="email"] { width:220px; }
+.go-nickname input { width:140px; }
 .go-nickname input:focus { border-color:var(--accent); }
 .go-nickname input::placeholder { color:rgba(26,18,8,.5); }
 .btn-save {
@@ -245,34 +244,6 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.6rem,3.5vw,2.4rem); color:va
 }
 .btn-skip:hover { border-color:rgba(255,255,255,.4); transform:scale(1.06); }
 .btn-skip:active { transform:scale(.95); }
-
-/* 개인정보 동의 */
-.privacy-section {
-  display:none; width:100%; max-width:320px; margin:0.3rem auto;
-}
-.privacy-section.show { display:block; }
-.privacy-box {
-  background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.15);
-  border-radius:10px; padding:0.6rem 0.8rem; text-align:left;
-}
-.privacy-title {
-  font-size:0.75rem; font-weight:700; color:var(--accent);
-  margin-bottom:0.3rem;
-}
-.privacy-content {
-  max-height:80px; overflow-y:auto; font-size:0.65rem; color:rgba(255,255,255,.7);
-  line-height:1.5; margin-bottom:0.4rem; padding-right:0.3rem;
-}
-.privacy-content p { margin:0 0 0.2rem; }
-.privacy-content::-webkit-scrollbar { width:4px; }
-.privacy-content::-webkit-scrollbar-thumb { background:rgba(255,255,255,.2); border-radius:2px; }
-.privacy-check {
-  display:flex; align-items:center; gap:0.4rem; cursor:pointer;
-  font-size:0.72rem; color:rgba(255,255,255,.85);
-}
-.privacy-check input[type="checkbox"] {
-  width:16px; height:16px; accent-color:var(--accent); cursor:pointer;
-}
 
 /* 랭킹 보드 */
 .go-leaderboard {
