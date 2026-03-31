@@ -1,5 +1,10 @@
 {
   "appId": "com.emojitray.app",
   "appName": "EmojiTray",
-  "webDir": "www"
+  "webDir": "www",
+  "plugins": {
+    "AdMob": {
+      "androidAdMobAppId": "ca-app-pub-2816580799508764~4626973540"
+    }
+  }
 }

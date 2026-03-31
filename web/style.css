@@ -297,6 +297,30 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.2rem,3vw,2rem); color:var(--
   font-size:clamp(4rem,10vw,6rem);
   animation:float-emoji 2.5s ease-in-out infinite;
   filter:drop-shadow(0 8px 20px rgba(244,165,53,.4));
+  position:relative;
+}
+.logo-star {
+  position:absolute;
+  font-size:.45em;
+  top:-.15em;
+  left:50%;
+  transform:translateX(-50%);
+  filter:drop-shadow(0 2px 8px rgba(255,215,0,.7));
+  animation:star-bounce 1.5s ease-in-out infinite;
+  z-index:1;
+}
+.logo-star-sm {
+  font-size:.55em;
+  top:-.1em;
+  animation:none;
+}
+.title-logo {
+  position:relative;
+  display:inline-block;
+}
+@keyframes star-bounce {
+  0%,100% { transform:translateX(-50%) translateY(0); }
+  50% { transform:translateX(-50%) translateY(-6px); }
 }
 @keyframes float-emoji {
   0%,100% { transform:translateY(0) rotate(-3deg); }

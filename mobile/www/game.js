@@ -1460,7 +1460,42 @@ document.getElementById('goNickSkip').addEventListener('click', async ()=>{
   document.getElementById('retryBtn').style.display = '';
 });
 
-document.getElementById('retryBtn').addEventListener('click', ()=>{
+// ── AdMob 전면 광고 ──────────────────────────────────────
+const INTERSTITIAL_AD_ID = 'ca-app-pub-2816580799508764/1762104656';
+let adMobReady = false;
+
+(async function initAdMob(){
+  try {
+    if(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.AdMob){
+      const { AdMob } = window.Capacitor.Plugins;
+      await AdMob.initialize({});
+      adMobReady = true;
+      // 미리 전면 광고 로드
+      await AdMob.prepareInterstitial({ adId: INTERSTITIAL_AD_ID });
+    }
+  } catch(e){ console.log('AdMob init skip:', e); }
+})();
+
+async function showInterstitialAd(){
+  if(!adMobReady) return;
+  try {
+    const { AdMob } = window.Capacitor.Plugins;
+    await AdMob.showInterstitial();
+    // 다음 광고 미리 로드
+    await AdMob.prepareInterstitial({ adId: INTERSTITIAL_AD_ID });
+  } catch(e){
+    console.log('Ad show fail:', e);
+    // 실패 시 다시 준비
+    try {
+      const { AdMob } = window.Capacitor.Plugins;
+      await AdMob.prepareInterstitial({ adId: INTERSTITIAL_AD_ID });
+    } catch(ignore){}
+  }
+}
+
+document.getElementById('retryBtn').addEventListener('click', async ()=>{
+  // 전면 광고 표시
+  await showInterstitialAd();
   // 낙하 중인 이모지 제거
   document.querySelectorAll('.falling-emoji').forEach(el=>el.remove());
   // 랭킹 UI 초기화
