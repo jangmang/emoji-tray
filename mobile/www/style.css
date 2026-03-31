@@ -157,7 +157,7 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.2rem,3vw,2rem); color:var(--
 #gameoverOverlay {
   position:fixed; inset:0; z-index:9000; overflow-y:auto;
   display:none; flex-direction:column; align-items:center;
-  gap:.7rem; background:rgba(8,4,0,.7); backdrop-filter:blur(12px);
+  gap:.2rem; background:rgba(8,4,0,.7); backdrop-filter:blur(12px);
   padding: 20px 0 0;
 }
 @keyframes fadeIn { from{opacity:0} to{opacity:1} }
@@ -172,12 +172,13 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.2rem,3vw,2rem); color:var(--
 .go-title {
   font-family:'Gaegu',cursive; font-size:clamp(2rem,5vw,3rem); color:var(--accent);
   text-shadow:0 2px 12px rgba(244,165,53,.3);
-}
+} 
 .go-sub-title {
   font-family:'Noto Sans KR',sans-serif; font-size:clamp(.95rem,2vw,1.2rem);
   color:var(--muted);
 }
 .go-level-badge {
+  display:none;
   font-family:'Orbitron',sans-serif; font-size:clamp(.7rem,1.3vw,.85rem); font-weight:700;
   color:var(--accent); background:rgba(244,165,53,.12); border:1px solid rgba(244,165,53,.25);
   border-radius:6px; padding:3px 10px; letter-spacing:.05em;
