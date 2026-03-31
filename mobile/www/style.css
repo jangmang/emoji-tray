@@ -27,6 +27,16 @@ body::before {
   position:relative; z-index:1; overflow:hidden;
 }
 
+/* 음소거 버튼 */
+.mute-btn {
+  position:fixed; top:10px; right:10px; z-index:9500;
+  background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.15);
+  border-radius:50%; width:36px; height:36px;
+  font-size:1.1rem; cursor:pointer; line-height:36px; text-align:center;
+  padding:0; transition:background .2s;
+}
+.mute-btn:hover { background:rgba(255,255,255,.2); }
+
 /* 상단 헤더: 제목 + HUD + 바를 한 줄로 */
 .top-header {
   width:100%; max-width:900px;
@@ -246,6 +256,10 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.2rem,3vw,2rem); color:var(--
 .btn-skip:active { transform:scale(.95); }
 
 /* 랭킹 보드 */
+.go-banner-ad {
+  width:320px; min-height:50px; margin:10px auto 0;
+}
+
 .go-leaderboard {
   display:none; flex-direction:column; align-items:center;
   width:min(360px,88vw); animation:fadeIn .4s ease;
@@ -582,7 +596,7 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.2rem,3vw,2rem); color:var(--
 @media (max-width:600px) {
   .start-overlay {justify-content: flex-start;}
   .countdown-timer {right:16px;}
-  .top-header { gap:.3rem; margin-bottom:2px; }
+  .top-header { flex-direction: column; gap:1rem; margin-bottom:2px; }
   h1 { font-size:1.1rem; }
   .hud-item { padding:3px 6px; min-width:48px; }
   .hud-label { font-size:.65rem; }

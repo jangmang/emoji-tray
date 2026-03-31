@@ -1,3 +1,56 @@
+// ── 사운드 매니저 ──────────────────────────────────────
+const SND = {
+  muted: false,
+  bgm:        new Audio('sounds/bgm.mp3'),
+  start:      new Audio('sounds/start.mp3'),
+  put:        new Audio('sounds/put.mp3'),
+  item:       new Audio('sounds/item.mp3'),
+  goldentime: new Audio('sounds/goldentime.mp3'),
+  levelup:    new Audio('sounds/levelup.mp3'),
+  drop:       new Audio('sounds/drop.mp3'),
+  winner:     new Audio('sounds/winner.mp3'),
+  end:        new Audio('sounds/end.mp3'),
+};
+SND.bgm.loop = true;
+SND.goldentime.loop = true;
+
+function playSFX(key) {
+  if(SND.muted) return;
+  const a = SND[key];
+  if(!a) return;
+  a.currentTime = 0;
+  a.play().catch(()=>{});
+}
+function playBGM() {
+  if(SND.muted) return;
+  SND.bgm.currentTime = 0;
+  SND.bgm.play().catch(()=>{});
+}
+function stopBGM() { SND.bgm.pause(); SND.bgm.currentTime = 0; }
+function pauseBGM() { SND.bgm.pause(); }
+function resumeBGM() { if(!SND.muted) SND.bgm.play().catch(()=>{}); }
+function playGoldenBGM() {
+  if(SND.muted) return;
+  SND.goldentime.currentTime = 0;
+  SND.goldentime.play().catch(()=>{});
+}
+function stopGoldenBGM() { SND.goldentime.pause(); SND.goldentime.currentTime = 0; }
+
+// 음소거 토글
+const muteBtn = document.getElementById('muteBtn');
+muteBtn.addEventListener('click', () => {
+  SND.muted = !SND.muted;
+  muteBtn.textContent = SND.muted ? '🔇' : '🔊';
+  if(SND.muted) {
+    SND.bgm.pause();
+    SND.goldentime.pause();
+  } else {
+    // 게임 진행 중이면 적절한 BGM 재개
+    if(running && goldenTime) SND.goldentime.play().catch(()=>{});
+    else if(running) SND.bgm.play().catch(()=>{});
+  }
+});
+
 // ── 이모지 데이터 ──────────────────────────────────────
 const EMOJI_DATA = [
   // 100점 (w:0.1) - 가볍지만 고점수 2개
@@ -378,30 +431,35 @@ function tryDrop(cx,cy) {
   // 랜덤박스: 랜덤 특수효과 발동
   if(dragging.data.mystery) {
     removeFloorItem(dragging.sourceEl);
+    playSFX('item');
     mysteryActivate(cx, cy, sv.x, sv.y);
     return true;
   }
   // 폭탄: 쟁반에 추가하지 않고 바로 폭발
   if(dragging.data.e === '💣') {
     removeFloorItem(dragging.sourceEl);
+    playSFX('item');
     bombExplode();
     return true;
   }
   // 얼음: 쟁반에 추가하지 않고 동결 효과
   if(dragging.data.e === '🧊') {
     removeFloorItem(dragging.sourceEl);
+    playSFX('item');
     iceFreeze(cx, cy);
     return true;
   }
   // 자석: 쟁반에 추가하지 않고 주변 이모지 끌어당기기
   if(dragging.data.e === '🧲') {
     removeFloorItem(dragging.sourceEl);
+    playSFX('item');
     magnetPull(sv.x, sv.y, cx, cy);
     return true;
   }
   // 별: 쟁반에 추가하지 않고 골든타임 발동
   if(dragging.data.e === '⭐') {
     removeFloorItem(dragging.sourceEl);
+    playSFX('item');
     starGoldenTime(cx, cy);
     return true;
   }
@@ -409,6 +467,7 @@ function tryDrop(cx,cy) {
   items.push({sx:sv.x, sy:sv.y, e:dragging.data.e, w:dragging.data.w, dropT:performance.now()});
   score += dropPts;
   removeFloorItem(dragging.sourceEl);
+  playSFX('put');
   spawnDropBurst(cx, cy);
   spawnScoreStars(cx, cy, dropPts);
   return true;
@@ -699,6 +758,8 @@ function starGoldenTime(screenCx, screenCy) {
   showGoldenCountdown(() => {
     if(!running) return;
     goldenTime = true;
+    pauseBGM();
+    playGoldenBGM();
 
     // 쟁반 위 이모지를 전부 별로 변환 (20% 확률로 🌟 100점)
     items.forEach(it => {
@@ -736,6 +797,8 @@ function starGoldenTime(screenCx, screenCy) {
 function endGoldenTime() {
   goldenTime = false;
   goldenTimer = null;
+  stopGoldenBGM();
+  resumeBGM();
   floorShelf.classList.remove('golden-time');
   dropHighlight.setAttribute('opacity', '0');
   dropHighlight.setAttribute('stroke', 'rgba(244,165,53,0)');
@@ -1009,6 +1072,8 @@ function init() {
   document.getElementById('frostOverlay').classList.remove('active');
   goldenTime=false; if(goldenTimer){clearTimeout(goldenTimer);goldenTimer=null;}
   floorShelf.classList.remove('golden-time');
+  stopBGM(); stopGoldenBGM();
+  playBGM();
   startOverlay.style.display='none';
   goOverlay.classList.remove('show');
   document.getElementById('levelClearOverlay').classList.remove('show');
@@ -1210,6 +1275,8 @@ function levelClear() {
   running = false;
   cancelAnimationFrame(rafId);
   countdownTimer.classList.remove('active');
+  stopGoldenBGM();
+  playSFX('levelup');
 
   const lcOverlay = document.getElementById('levelClearOverlay');
   const isAllClear = level >= LEVELS.length;
@@ -1308,11 +1375,13 @@ function showGameOverScreen() {
       nickArea.classList.add('show');
       retryBtn.style.display = 'none';
       spawnConfetti();
+      playSFX('winner');
       document.getElementById('goNickInput').focus();
     } else {
       document.querySelector('.go-emoji').textContent = '💥';
       document.querySelector('.go-title').textContent = '쏟아졌다!';
       if(goSubTitle) goSubTitle.textContent = lvlText + '에서 실패';
+      playSFX('end');
       const board = await loadLeaderboard();
       renderLeaderboard(board, finalScore, '');
       lbArea.classList.add('show');
@@ -1327,6 +1396,8 @@ function showGameOverScreen() {
 function gameOver() {
   running=false; cancelAnimationFrame(rafId);
   countdownTimer.classList.remove('active');
+  stopBGM(); stopGoldenBGM();
+  playSFX('drop');
 
   // 1. 캔버스의 이모지를 즉시 지움 (쟁반 위 이모지 제거)
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1420,7 +1491,7 @@ dropZone.addEventListener('touchend', e => {
 });
 
 // ── 이벤트 ─────────────────────────────────────────────
-document.getElementById('startBtn').addEventListener('click', init);
+document.getElementById('startBtn').addEventListener('click', () => { playSFX('start'); init(); });
 
 // 닉네임 저장
 document.getElementById('goNickSave').addEventListener('click', async ()=>{
@@ -1461,6 +1532,7 @@ document.getElementById('goNickSkip').addEventListener('click', async ()=>{
 });
 
 document.getElementById('retryBtn').addEventListener('click', ()=>{
+  playSFX('start');
   // 낙하 중인 이모지 제거
   document.querySelectorAll('.falling-emoji').forEach(el=>el.remove());
   // 랭킹 UI 초기화

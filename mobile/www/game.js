@@ -1,3 +1,56 @@
+// ── 사운드 매니저 ──────────────────────────────────────
+const SND = {
+  muted: false,
+  bgm:        new Audio('sounds/bgm.ogg'),
+  start:      new Audio('sounds/start.ogg'),
+  put:        new Audio('sounds/put.ogg'),
+  item:       new Audio('sounds/item.ogg'),
+  goldentime: new Audio('sounds/goldentime.ogg'),
+  levelup:    new Audio('sounds/levelup.ogg'),
+  drop:       new Audio('sounds/drop.ogg'),
+  winner:     new Audio('sounds/winner.ogg'),
+  end:        new Audio('sounds/end.ogg'),
+};
+SND.bgm.loop = true;
+SND.goldentime.loop = true;
+
+function playSFX(key) {
+  if(SND.muted) return;
+  const a = SND[key];
+  if(!a) return;
+  a.currentTime = 0;
+  a.play().catch(()=>{});
+}
+function playBGM() {
+  if(SND.muted) return;
+  SND.bgm.currentTime = 0;
+  SND.bgm.play().catch(()=>{});
+}
+function stopBGM() { SND.bgm.pause(); SND.bgm.currentTime = 0; }
+function pauseBGM() { SND.bgm.pause(); }
+function resumeBGM() { if(!SND.muted) SND.bgm.play().catch(()=>{}); }
+function playGoldenBGM() {
+  if(SND.muted) return;
+  SND.goldentime.currentTime = 0;
+  SND.goldentime.play().catch(()=>{});
+}
+function stopGoldenBGM() { SND.goldentime.pause(); SND.goldentime.currentTime = 0; }
+
+// 음소거 토글
+const muteBtn = document.getElementById('muteBtn');
+muteBtn.addEventListener('click', () => {
+  SND.muted = !SND.muted;
+  muteBtn.textContent = SND.muted ? '🔇' : '🔊';
+  if(SND.muted) {
+    SND.bgm.pause();
+    SND.goldentime.pause();
+  } else {
+    // 게임 진행 중이면 적절한 BGM 재개
+    if(running && goldenTime) SND.goldentime.play().catch(()=>{});
+    else if(running) SND.bgm.play().catch(()=>{});
+  }
+});
+
 // ── 이모지 데이터 ──────────────────────────────────────
 const EMOJI_DATA = [
   // 100점 (w:0.1) - 가볍지만 고점수 2개
@@ -37,43 +90,6 @@ const SPECIAL_RATE = 0.15;
 // 랜덤박스
 const MYSTERY_EMOJI = {e:'❓', w:0, special:true, mystery:true};
 const MYSTERY_RATE = 0.08;
-
-// ── 사운드 매니저 ───────────────────────────────────────
-const SND = {
-  bgm:        new Audio('sounds/bgm.ogg'),
-  start:      new Audio('sounds/start.ogg'),
-  put:        new Audio('sounds/put.ogg'),
-  item:       new Audio('sounds/item.ogg'),
-  goldentime: new Audio('sounds/goldentime.ogg'),
-  levelup:    new Audio('sounds/levelup.ogg'),
-  drop:       new Audio('sounds/drop.ogg'),
-  winner:     new Audio('sounds/winner.ogg'),
-  end:        new Audio('sounds/end.ogg'),
-};
-SND.bgm.loop = true;
-SND.goldentime.loop = true;
-
-let soundMuted = localStorage.getItem('soundMuted') === '1';
-function applyMute() {
-  Object.values(SND).forEach(a => a.muted = soundMuted);
-  const btn = document.getElementById('muteBtn');
-  if(btn) btn.textContent = soundMuted ? '🔇' : '🔊';
-}
-applyMute();
-document.getElementById('muteBtn')?.addEventListener('click', () => {
-  soundMuted = !soundMuted;
-  localStorage.setItem('soundMuted', soundMuted ? '1' : '0');
-  applyMute();
-});
-
-function playSFX(audio) {
-  audio.currentTime = 0;
-  audio.play().catch(()=>{});
-}
-function stopAudio(audio) {
-  audio.pause();
-  audio.currentTime = 0;
-}
 
 // ── 쟁반 SVG 좌표계 상수 ───────────────────────────────
 // SVG viewBox: 35 45 490 330
@@ -415,34 +431,35 @@ function tryDrop(cx,cy) {
   // 랜덤박스: 랜덤 특수효과 발동
   if(dragging.data.mystery) {
     removeFloorItem(dragging.sourceEl);
-    playSFX(SND.item);
+    playSFX('item');
     mysteryActivate(cx, cy, sv.x, sv.y);
     return true;
   }
   // 폭탄: 쟁반에 추가하지 않고 바로 폭발
   if(dragging.data.e === '💣') {
     removeFloorItem(dragging.sourceEl);
-    playSFX(SND.item);
+    playSFX('item');
     bombExplode();
     return true;
   }
   // 얼음: 쟁반에 추가하지 않고 동결 효과
   if(dragging.data.e === '🧊') {
     removeFloorItem(dragging.sourceEl);
-    playSFX(SND.item);
+    playSFX('item');
     iceFreeze(cx, cy);
     return true;
   }
   // 자석: 쟁반에 추가하지 않고 주변 이모지 끌어당기기
   if(dragging.data.e === '🧲') {
     removeFloorItem(dragging.sourceEl);
-    playSFX(SND.item);
+    playSFX('item');
     magnetPull(sv.x, sv.y, cx, cy);
     return true;
   }
   // 별: 쟁반에 추가하지 않고 골든타임 발동
   if(dragging.data.e === '⭐') {
     removeFloorItem(dragging.sourceEl);
+    playSFX('item');
     starGoldenTime(cx, cy);
     return true;
   }
@@ -450,7 +467,7 @@ function tryDrop(cx,cy) {
   items.push({sx:sv.x, sy:sv.y, e:dragging.data.e, w:dragging.data.w, dropT:performance.now()});
   score += dropPts;
   removeFloorItem(dragging.sourceEl);
-  playSFX(SND.put);
+  playSFX('put');
   spawnDropBurst(cx, cy);
   spawnScoreStars(cx, cy, dropPts);
   return true;
@@ -741,10 +758,8 @@ function starGoldenTime(screenCx, screenCy) {
   showGoldenCountdown(() => {
     if(!running) return;
     goldenTime = true;
-    // BGM 일시정지, 골든타임 BGM 재생
-    SND.bgm.pause();
-    SND.goldentime.currentTime = 0;
-    SND.goldentime.play().catch(()=>{});
+    pauseBGM();
+    playGoldenBGM();
 
     // 쟁반 위 이모지를 전부 별로 변환 (20% 확률로 🌟 100점)
     items.forEach(it => {
@@ -782,15 +797,14 @@ function starGoldenTime(screenCx, screenCy) {
 function endGoldenTime() {
   goldenTime = false;
   goldenTimer = null;
+  stopGoldenBGM();
+  resumeBGM();
   floorShelf.classList.remove('golden-time');
   dropHighlight.setAttribute('opacity', '0');
   dropHighlight.setAttribute('stroke', 'rgba(244,165,53,0)');
   dropHighlight.setAttribute('stroke-width', '4');
   dropHighlight.classList.remove('golden-flash');
   hideGoldenShelfOverlay();
-  // 골든타임 BGM 정지, 일반 BGM 재개
-  stopAudio(SND.goldentime);
-  if(running) SND.bgm.play().catch(()=>{});
 
   // 수확되지 않은 별을 원래 이모지로 복원
   items.forEach(it => {
@@ -1049,6 +1063,7 @@ function drawEmojis() {
 
 // ── 게임 루프 ──────────────────────────────────────────
 function init() {
+  hideBannerAd();
   syncCanvas();
   level = 1;
   applyLevel(level);
@@ -1058,17 +1073,14 @@ function init() {
   document.getElementById('frostOverlay').classList.remove('active');
   goldenTime=false; if(goldenTimer){clearTimeout(goldenTimer);goldenTimer=null;}
   floorShelf.classList.remove('golden-time');
+  stopBGM(); stopGoldenBGM();
+  playBGM();
   startOverlay.style.display='none';
   goOverlay.classList.remove('show');
   document.getElementById('levelClearOverlay').classList.remove('show');
   document.body.classList.remove('no-scroll');
   trayGroup.style.transition='';
   trayGroup.style.transform='';
-  // 사운드: 이전 사운드 정리 후 BGM 시작
-  stopAudio(SND.goldentime); stopAudio(SND.winner); stopAudio(SND.end); stopAudio(SND.drop);
-  playSFX(SND.start);
-  SND.bgm.currentTime = 0;
-  SND.bgm.play().catch(()=>{});
   initFloor(); updateHUD(0,0);
   if(rafId) cancelAnimationFrame(rafId);
   loop();
@@ -1264,8 +1276,8 @@ function levelClear() {
   running = false;
   cancelAnimationFrame(rafId);
   countdownTimer.classList.remove('active');
-  stopAudio(SND.goldentime);
-  playSFX(SND.levelup);
+  stopGoldenBGM();
+  playSFX('levelup');
 
   const lcOverlay = document.getElementById('levelClearOverlay');
   const isAllClear = level >= LEVELS.length;
@@ -1364,13 +1376,13 @@ function showGameOverScreen() {
       nickArea.classList.add('show');
       retryBtn.style.display = 'none';
       spawnConfetti();
-      playSFX(SND.winner);
+      playSFX('winner');
       document.getElementById('goNickInput').focus();
     } else {
       document.querySelector('.go-emoji').textContent = '💥';
       document.querySelector('.go-title').textContent = '쏟아졌다!';
       if(goSubTitle) goSubTitle.textContent = lvlText + '에서 실패';
-      playSFX(SND.end);
+      playSFX('end');
       const board = await loadLeaderboard();
       renderLeaderboard(board, finalScore, '');
       lbArea.classList.add('show');
@@ -1378,6 +1390,8 @@ function showGameOverScreen() {
     }
     goOverlay.classList.add('show');
     document.body.classList.add('no-scroll');
+    // 하단 배너 광고 표시
+    showBannerAd();
   })();
 }
 
@@ -1385,9 +1399,8 @@ function showGameOverScreen() {
 function gameOver() {
   running=false; cancelAnimationFrame(rafId);
   countdownTimer.classList.remove('active');
-  // 사운드: BGM·골든타임 정지, 낙하 효과음
-  stopAudio(SND.bgm); stopAudio(SND.goldentime);
-  playSFX(SND.drop);
+  stopBGM(); stopGoldenBGM();
+  playSFX('drop');
 
   // 1. 캔버스의 이모지를 즉시 지움 (쟁반 위 이모지 제거)
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1481,7 +1494,7 @@ dropZone.addEventListener('touchend', e => {
 });
 
 // ── 이벤트 ─────────────────────────────────────────────
-document.getElementById('startBtn').addEventListener('click', init);
+document.getElementById('startBtn').addEventListener('click', () => { playSFX('start'); init(); });
 
 // 닉네임 저장
 document.getElementById('goNickSave').addEventListener('click', async ()=>{
@@ -1521,7 +1534,66 @@ document.getElementById('goNickSkip').addEventListener('click', async ()=>{
   document.getElementById('retryBtn').style.display = '';
 });
 
-document.getElementById('retryBtn').addEventListener('click', ()=>{
+// ── AdMob 광고 ──────────────────────────────────────────
+const INTERSTITIAL_AD_ID = 'ca-app-pub-2816580799508764/1762104656';
+const BANNER_AD_ID = 'ca-app-pub-2816580799508764/2870504283';
+let adMobReady = false;
+
+(async function initAdMob(){
+  try {
+    if(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.AdMob){
+      const { AdMob } = window.Capacitor.Plugins;
+      await AdMob.initialize({});
+      adMobReady = true;
+      // 미리 전면 광고 로드
+      await AdMob.prepareInterstitial({ adId: INTERSTITIAL_AD_ID });
+    }
+  } catch(e){ console.log('AdMob init skip:', e); }
+})();
+
+// 배너 광고 표시 (게임오버 화면)
+async function showBannerAd(){
+  if(!adMobReady) return;
+  try {
+    const { AdMob } = window.Capacitor.Plugins;
+    await AdMob.showBanner({
+      adId: BANNER_AD_ID,
+      adSize: 'BANNER',
+      position: 'BOTTOM_CENTER',
+      margin: 0,
+    });
+  } catch(e){ console.log('Banner show fail:', e); }
+}
+
+async function hideBannerAd(){
+  if(!adMobReady) return;
+  try {
+    const { AdMob } = window.Capacitor.Plugins;
+    await AdMob.removeBanner();
+  } catch(e){ console.log('Banner hide fail:', e); }
+}
+
+async function showInterstitialAd(){
+  if(!adMobReady) return;
+  try {
+    const { AdMob } = window.Capacitor.Plugins;
+    await AdMob.showInterstitial();
+    // 다음 광고 미리 로드
+    await AdMob.prepareInterstitial({ adId: INTERSTITIAL_AD_ID });
+  } catch(e){
+    console.log('Ad show fail:', e);
+    // 실패 시 다시 준비
+    try {
+      const { AdMob } = window.Capacitor.Plugins;
+      await AdMob.prepareInterstitial({ adId: INTERSTITIAL_AD_ID });
+    } catch(ignore){}
+  }
+}
+
+document.getElementById('retryBtn').addEventListener('click', async ()=>{
+  playSFX('start');
+  // 전면 광고 표시
+  await showInterstitialAd();
   // 낙하 중인 이모지 제거
   document.querySelectorAll('.falling-emoji').forEach(el=>el.remove());
   // 랭킹 UI 초기화
