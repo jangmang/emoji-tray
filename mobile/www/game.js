@@ -36,6 +36,12 @@ function playGoldenBGM() {
 }
 function stopGoldenBGM() { SND.goldentime.pause(); SND.goldentime.currentTime = 0; }
 
+function confirmGoHome() {
+  if (confirm('처음으로 돌아가시겠습니까? 진행내용이 사라집니다.')) {
+    window.location.reload();
+  }
+}
+
 // 음소거 토글
 const muteBtn = document.getElementById('muteBtn');
 muteBtn.addEventListener('click', () => {

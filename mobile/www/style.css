@@ -25,21 +25,23 @@ body::before {
   width:100%; max-width:900px; height:100%;
   display:flex; flex-direction:column; align-items:center;
   position:relative; z-index:1; overflow:hidden;
-  padding-top: calc(10px + env(safe-area-inset-top));
-  padding-right: calc(10px + env(safe-area-inset-right));
-  padding-bottom: calc(10px + env(safe-area-inset-bottom));
-  padding-left: calc(10px + env(safe-area-inset-left));
+  padding-top: calc(10px + env(safe-area-inset-top, 0px));
+  padding-right: calc(10px + env(safe-area-inset-right, 0px));
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  padding-left: calc(10px + env(safe-area-inset-left, 0px));
 }
 
 /* 음소거 버튼 */
-.mute-btn {
-  position:fixed; top:10px; right:10px; z-index:9500;
+.home-btn, .mute-btn {
+  position:fixed; top:calc(10px + env(safe-area-inset-top, 0px)); z-index:9500;
   background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.15);
   border-radius:50%; width:36px; height:36px;
   font-size:1.1rem; cursor:pointer; line-height:36px; text-align:center;
   padding:0; transition:background .2s;
 }
-.mute-btn:hover { background:rgba(255,255,255,.2); }
+.home-btn { left:calc(10px + env(safe-area-inset-left, 0px)); }
+.mute-btn { right:10px; }
+.home-btn:hover, .mute-btn:hover { background:rgba(255,255,255,.2); }
 
 /* 상단 헤더: 제목 + HUD + 바를 한 줄로 */
 .top-header {
@@ -598,7 +600,7 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.2rem,3vw,2rem); color:var(--
   width:48px; display:none; text-align:center;
 }
 @media (max-width:600px) {
-  .start-overlay {justify-content: flex-start;}
+  .start-overlay {overflow-y:auto; justify-content: flex-start; padding-top: 15vw}
   .countdown-timer {right:16px;}
   .top-header { flex-direction: column; gap:1rem; margin-bottom:2px; }
   h1 { font-size:1.1rem; }
