@@ -1558,7 +1558,7 @@ async function showBannerAd(){
     const { AdMob } = window.Capacitor.Plugins;
     await AdMob.showBanner({
       adId: BANNER_AD_ID,
-      adSize: 'BANNER',
+      adSize: 'ADAPTIVE_BANNER',
       position: 'BOTTOM_CENTER',
       margin: 0,
     });
