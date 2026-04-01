@@ -1689,6 +1689,7 @@ async function showInterstitialAd(onDismissed){
   }
 }
 
+const cleaningDim = document.getElementById('cleaningDim');
 document.getElementById('retryBtn').addEventListener('click', ()=>{
   playSFX('start');
   // 즉시 게임오버 오버레이 닫기 + 쟁반 상태 초기화
@@ -1701,7 +1702,12 @@ document.getElementById('retryBtn').addEventListener('click', ()=>{
   trayGroup.style.transform = '';
   items = [];
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  // 전면 광고 표시 → 닫히면 바로 게임 시작
-  showInterstitialAd(() => init());
+  // 청소중 딤 표시
+  cleaningDim.classList.add('show');
+  // 전면 광고 표시 → 닫히면 딤 제거 + 게임 시작
+  showInterstitialAd(() => {
+    cleaningDim.classList.remove('show');
+    init();
+  });
 });
 window.addEventListener('resize', ()=>{ if(running) syncCanvas(); });

@@ -264,6 +264,22 @@ h1 { font-family:'Gaegu',cursive; font-size:clamp(1.2rem,3vw,2rem); color:var(--
 .btn-skip:hover { border-color:rgba(255,255,255,.4); transform:scale(1.06); }
 .btn-skip:active { transform:scale(.95); }
 
+/* 청소중 딤 팝업 */
+.cleaning-dim {
+  display:none; position:fixed; inset:0; z-index:9999;
+  background:rgba(8,4,0,.75); backdrop-filter:blur(6px);
+  justify-content:center; align-items:center;
+}
+.cleaning-dim.show { display:flex; }
+.cleaning-box {
+  font-family:'Gaegu',cursive; font-size:clamp(1.4rem,4vw,2rem);
+  color:#fff; background:rgba(40,25,8,.9);
+  padding:.8rem 2rem; border-radius:16px;
+  border:1px solid rgba(244,165,53,.3);
+  box-shadow:0 4px 24px rgba(0,0,0,.5);
+  animation:fadeIn .3s ease;
+}
+
 /* 랭킹 보드 */
 .go-banner-ad {
   width:100%; min-height:60px; flex-shrink:0;
