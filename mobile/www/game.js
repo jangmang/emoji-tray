@@ -12,6 +12,7 @@ const SND = {
   end:        new Audio('sounds/end.ogg'),
 };
 SND.bgm.loop = true;
+SND.bgm.volume = 0.5;
 SND.goldentime.loop = true;
 
 function playSFX(key) {
