@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(npm install:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(git -C \"e:\\\\@@@프로젝트@@@\\\\2026\\\\쟁반균형게임\" log --oneline --all)",
+      "Bash(git -C \"e:\\\\@@@프로젝트@@@\\\\2026\\\\쟁반균형게임\" show 4a401fa --stat)"
     ]
   }
 }
