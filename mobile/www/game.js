@@ -1691,7 +1691,6 @@ async function showInterstitialAd(onDismissed){
 
 const cleaningDim = document.getElementById('cleaningDim');
 document.getElementById('retryBtn').addEventListener('click', ()=>{
-  playSFX('start');
   // 즉시 게임오버 오버레이 닫기 + 쟁반 상태 초기화
   document.querySelectorAll('.falling-emoji').forEach(el=>el.remove());
   document.getElementById('goNickname').classList.remove('show');
