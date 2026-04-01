@@ -341,6 +341,7 @@ function initFloor() {
 // ── 드래그 ─────────────────────────────────────────────
 function startDrag(e, data, sourceEl) {
   if(!running) return; e.preventDefault();
+  hideGuideMotion();
   dragging={data,sourceEl};
   sourceEl.classList.add('dragging');
   ghost.textContent = data.e;
@@ -350,6 +351,7 @@ function startDrag(e, data, sourceEl) {
 }
 function startDragTouch(e, data, sourceEl) {
   if(!running) return; e.preventDefault();
+  hideGuideMotion();
   dragging={data,sourceEl};
   sourceEl.classList.add('dragging');
   ghost.textContent = data.e;
@@ -1061,6 +1063,37 @@ function drawEmojis() {
   });
 }
 
+// ── 가이드 모션 ─────────────────────────────────────────
+function showGuideMotion() {
+  const shelf = document.getElementById('floorShelf');
+  const tray = document.getElementById('trayGroup');
+  if(!shelf || !tray) return;
+  const sr = shelf.getBoundingClientRect();
+  const tr = tray.getBoundingClientRect();
+  const startX = sr.left + sr.width / 2;
+  const startY = sr.top + sr.height * 0.3;
+  const dx = (tr.left + tr.width / 2) - startX;
+  const dy = (tr.top + tr.height / 2) - startY;
+
+  let count = 0;
+  function spawn() {
+    if(count >= 2) return;
+    const el = document.createElement('div');
+    el.className = 'guide-finger' + (count > 0 ? ' repeat' : '');
+    el.textContent = '👆';
+    el.style.left = startX + 'px';
+    el.style.top = startY + 'px';
+    el.style.setProperty('--gx', dx + 'px');
+    el.style.setProperty('--gy', dy + 'px');
+    document.body.appendChild(el);
+    el.addEventListener('animationend', () => { el.remove(); count++; spawn(); });
+  }
+  spawn();
+}
+function hideGuideMotion() {
+  document.querySelectorAll('.guide-finger').forEach(el => el.remove());
+}
+
 // ── 게임 루프 ──────────────────────────────────────────
 function init() {
   syncCanvas();
@@ -1082,6 +1115,7 @@ function init() {
   trayGroup.style.transform='';
   initFloor(); updateHUD(0,0);
   if(rafId) cancelAnimationFrame(rafId);
+  showGuideMotion();
   loop();
 }
 
