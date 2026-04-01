@@ -57,6 +57,71 @@ muteBtn.addEventListener('click', () => {
   }
 });
 
+// 앱 비활성/활성 시 게임 일시정지/재개
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    // ── 일시정지 ──
+    SND.bgm.pause();
+    SND.goldentime.pause();
+    if (!running) return;
+    paused = true;
+    cancelAnimationFrame(rafId);
+
+    const now = performance.now();
+    _pauseData = { dropElapsed: now - lastDropTime };
+
+    // frozenTimer 남은 시간 저장
+    if (frozenTimer) {
+      _pauseData.frozenRemain = Math.max(0, ICE_DURATION - (now - frozenStart));
+      clearTimeout(frozenTimer); frozenTimer = null;
+    }
+    // goldenTimer 남은 시간 저장
+    if (goldenTimer) {
+      _pauseData.goldenRemain = Math.max(0, GOLDEN_DURATION - (now - goldenStart));
+      clearTimeout(goldenTimer); goldenTimer = null;
+    }
+    // 카운트다운 interval 정지
+    if (_lcInterval) { clearInterval(_lcInterval); _pauseData.lcPaused = true; }
+    if (_gcInterval) { clearInterval(_gcInterval); _pauseData.gcPaused = true; }
+  } else {
+    // ── 재개 ──
+    if (!running || !paused) return;
+    paused = false;
+    const pd = _pauseData || {};
+
+    // 자동드롭 타이머 보정
+    lastDropTime = performance.now() - (pd.dropElapsed || 0);
+
+    // frozenTimer 복원
+    if (pd.frozenRemain > 0) {
+      frozenStart = performance.now();
+      frozenTimer = setTimeout(() => {
+        frozen = false; frozenTimer = null;
+        document.getElementById('frostOverlay').classList.remove('active');
+        clearFrostFlakes();
+      }, pd.frozenRemain);
+    }
+    // goldenTimer 복원
+    if (pd.goldenRemain > 0) {
+      goldenStart = performance.now();
+      goldenTimer = setTimeout(() => { endGoldenTime(); }, pd.goldenRemain);
+    }
+    // 카운트다운 interval은 짧은 전환이므로 남은 시간 그대로 재시작
+    // (레벨클리어/골든카운트다운은 running=false 상태이므로 대부분 해당 없음)
+
+    _pauseData = null;
+
+    // 사운드 재개
+    if (!SND.muted) {
+      if (goldenTime) SND.goldentime.play().catch(()=>{});
+      else SND.bgm.play().catch(()=>{});
+    }
+
+    // 게임 루프 재시작
+    loop();
+  }
+});
+
 // ── 이모지 데이터 ──────────────────────────────────────
 const EMOJI_DATA = [
   // 100점 (w:0.1) - 가볍지만 고점수 2개
@@ -135,6 +200,10 @@ let frozen=false, frozenTimer=null;
 let goldenTime=false, goldenTimer=null;
 let score=0, best = parseInt(localStorage.getItem('trayBest5')||'0');
 let floorItems=[], nextId=0, dragging=null;
+
+// ── 일시정지 상태 ──────────────────────────────────────
+let paused = false;
+let _pauseData = null; // { frozenRemain, goldenRemain, lcRemain, gcRemain, ... }
 
 function toPoints(w){ return Math.round(w * 10); }
 
@@ -606,6 +675,7 @@ function spawnBombCloud(cx, cy) {
 
 // ── 얼음 동결 효과: 10초간 기울기 고정 ────────────────────
 const ICE_DURATION = 5000;
+let frozenStart = 0; // frozenTimer 시작 시점
 
 let frostFlakes = [];
 
@@ -627,6 +697,7 @@ function iceFreeze(screenCx, screenCy) {
   spawnFrostFlakes();
 
   // 10초 후 해제
+  frozenStart = performance.now();
   frozenTimer = setTimeout(() => {
     frozen = false;
     frozenTimer = null;
@@ -738,6 +809,7 @@ function spawnMagnetBurst(cx, cy) {
 
 // ── 별 골든타임: 쟁반 위 이모지를 별로 변환, 클릭하면 10점 ─────
 const GOLDEN_DURATION = 10000;
+let goldenStart = 0; // goldenTimer 시작 시점
 
 let goldenCountdownActive = false;
 
@@ -794,6 +866,7 @@ function starGoldenTime(screenCx, screenCy) {
     lastDropTime = performance.now();
 
     // 5초 후 해제
+    goldenStart = performance.now();
     goldenTimer = setTimeout(() => {
       endGoldenTime();
     }, GOLDEN_DURATION);
@@ -825,6 +898,7 @@ function endGoldenTime() {
   });
 }
 
+let _gcInterval = null; // 골든 카운트다운 interval (일시정지용)
 function showGoldenCountdown(onComplete) {
   goldenCountdownActive = true;
   const el = document.createElement('div');
@@ -848,12 +922,14 @@ function showGoldenCountdown(onComplete) {
       numEl.style.animation = '';
     } else {
       clearInterval(interval);
+      _gcInterval = null;
       el.style.opacity = '0';
       goldenCountdownActive = false;
       onComplete();
       setTimeout(() => el.remove(), 400);
     }
   }, 1000);
+  _gcInterval = interval;
 }
 
 function showGoldenClearToast() {
@@ -1071,6 +1147,7 @@ function drawEmojis() {
 function init() {
   hideBannerAd();
   syncCanvas();
+  paused=false; _pauseData=null;
   level = 1;
   applyLevel(level);
   items=[]; tiltX=0; tiltY=0; shakeTimer=0; score=0; running=true; lastDropTime=performance.now();
@@ -1208,7 +1285,7 @@ function updateCountdown() {
 }
 
 function loop() {
-  if(!running) return;
+  if(!running || paused) return;
   // 자동 드롭 체크
   if(performance.now() - lastDropTime > AUTO_DROP_DELAY) autoDrop();
 
@@ -1278,6 +1355,7 @@ function updateHUD(sc, danger) {
 }
 
 // ── 레벨 클리어 ─────────────────────────────────────────
+let _lcInterval = null; // 레벨 클리어 카운트다운 interval (일시정지용)
 function levelClear() {
   running = false;
   cancelAnimationFrame(rafId);
@@ -1326,6 +1404,7 @@ function levelClear() {
       document.getElementById('lcCountdown').textContent = countdown;
     } else {
       clearInterval(cdInterval);
+      _lcInterval = null;
       lcOverlay.classList.remove('show');
       document.body.classList.remove('no-scroll');
       // 다음 레벨 시작
@@ -1347,6 +1426,7 @@ function levelClear() {
       loop();
     }
   }, 1000);
+  _lcInterval = cdInterval;
 }
 
 function showGameOverScreen() {
@@ -1579,16 +1659,29 @@ async function hideBannerAd(){
   } catch(e){ console.log('Banner hide fail:', e); }
 }
 
-async function showInterstitialAd(){
-  if(!adMobReady) return;
+// 전면 광고를 표시하고, 광고가 닫힐 때 콜백 실행
+async function showInterstitialAd(onDismissed){
+  if(!adMobReady) { onDismissed(); return; }
   try {
     const { AdMob } = window.Capacitor.Plugins;
+
+    // 광고 닫힘 → 즉시 콜백
+    AdMob.addListener('interstitialAdDismissed', () => {
+      AdMob.removeAllListeners();
+      onDismissed();
+      // 다음 광고 미리 로드 (백그라운드)
+      AdMob.prepareInterstitial({ adId: INTERSTITIAL_AD_ID }).catch(()=>{});
+    });
+
+    AdMob.addListener('interstitialAdFailedToShow', () => {
+      AdMob.removeAllListeners();
+      onDismissed();
+    });
+
     await AdMob.showInterstitial();
-    // 다음 광고 미리 로드
-    await AdMob.prepareInterstitial({ adId: INTERSTITIAL_AD_ID });
   } catch(e){
     console.log('Ad show fail:', e);
-    // 실패 시 다시 준비
+    onDismissed();
     try {
       const { AdMob } = window.Capacitor.Plugins;
       await AdMob.prepareInterstitial({ adId: INTERSTITIAL_AD_ID });
@@ -1596,16 +1689,19 @@ async function showInterstitialAd(){
   }
 }
 
-document.getElementById('retryBtn').addEventListener('click', async ()=>{
+document.getElementById('retryBtn').addEventListener('click', ()=>{
   playSFX('start');
-  // 전면 광고 표시
-  await showInterstitialAd();
-  // 낙하 중인 이모지 제거
+  // 즉시 게임오버 오버레이 닫기 + 쟁반 상태 초기화
   document.querySelectorAll('.falling-emoji').forEach(el=>el.remove());
-  // 랭킹 UI 초기화
   document.getElementById('goNickname').classList.remove('show');
   document.getElementById('goLeaderboard').classList.remove('show');
   document.getElementById('retryBtn').style.display = '';
-  init();
+  goOverlay.classList.remove('show');
+  trayGroup.style.transition = '';
+  trayGroup.style.transform = '';
+  items = [];
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // 전면 광고 표시 → 닫히면 바로 게임 시작
+  showInterstitialAd(() => init());
 });
 window.addEventListener('resize', ()=>{ if(running) syncCanvas(); });
