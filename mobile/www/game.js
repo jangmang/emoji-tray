@@ -81,6 +81,12 @@ document.addEventListener('visibilitychange', () => {
       _pauseData.goldenRemain = Math.max(0, GOLDEN_DURATION - (now - goldenStart));
       clearTimeout(goldenTimer); goldenTimer = null;
     }
+    // criticalTimer 남은 시간 저장
+    if (criticalTimer) {
+      _pauseData.criticalRemain = Math.max(0, CRITICAL_DURATIONS[criticalZone] - (now - criticalStart));
+      _pauseData.criticalZone = criticalZone;
+      clearTimeout(criticalTimer); criticalTimer = null;
+    }
     // 카운트다운 interval 정지
     if (_lcInterval) { clearInterval(_lcInterval); _pauseData.lcPaused = true; }
     if (_gcInterval) { clearInterval(_gcInterval); _pauseData.gcPaused = true; }
@@ -107,6 +113,12 @@ document.addEventListener('visibilitychange', () => {
       goldenStart = performance.now();
       goldenTimer = setTimeout(() => { endGoldenTime(); }, pd.goldenRemain);
     }
+    // criticalTimer 복원
+    if (pd.criticalRemain > 0) {
+      criticalZone = pd.criticalZone || 1;
+      criticalStart = performance.now();
+      criticalTimer = setTimeout(() => { criticalZone=0; criticalTimer=null; gameOver(); }, pd.criticalRemain);
+    }
     // 카운트다운 interval은 짧은 전환이므로 남은 시간 그대로 재시작
     // (레벨클리어/골든카운트다운은 running=false 상태이므로 대부분 해당 없음)
 
@@ -122,6 +134,13 @@ document.addEventListener('visibilitychange', () => {
     loop();
   }
 });
+
+// ── 미션 시스템 ─────────────────────────────────────────
+const MISSION_DEFS = [
+  { id:'shrink', icon:'🤏', label:'크기 절반' },
+  { id:'score',  icon:'🌟', label:'점수 배율' },
+  { id:'nodrop', icon:'🕝', label:'자동드롭 OFF' },
+];
 
 // ── 이모지 데이터 ──────────────────────────────────────
 const EMOJI_DATA = [
@@ -196,9 +215,15 @@ function applyLevel(lv) {
 }
 
 // ── 상태 ───────────────────────────────────────────────
+let levelMissions = []; // [{emoji, missionId, count, done}]
+let currentMissionIndex = 0;
+let missionEffects = { sizeScale:1.0, scoreMulti:1, noAutoDrop:false };
 let items=[], tiltX=0, tiltY=0, running=false, rafId=null, shakeTimer=0;
 let frozen=false, frozenTimer=null;
 let goldenTime=false, goldenTimer=null;
+// criticalZone: 0=안전 1=90~95% 2=95~99% 3=100%+
+let criticalZone=0, criticalTimer=null, criticalStart=0;
+const CRITICAL_DURATIONS = [0, 5000, 3000, 1500];
 let score=0, best = parseInt(localStorage.getItem('trayBest5')||'0');
 let floorItems=[], nextId=0, dragging=null;
 
@@ -206,7 +231,7 @@ let floorItems=[], nextId=0, dragging=null;
 let paused = false;
 let _pauseData = null; // { frozenRemain, goldenRemain, lcRemain, gcRemain, ... }
 
-function toPoints(w){ return Math.round(w * 10); }
+function toPoints(w){ return Math.round(w * 10 * missionEffects.scoreMulti); }
 
 // ── Firestore 랭킹 헬퍼 ─────────────────────────────────
 async function loadLeaderboard() {
@@ -256,6 +281,90 @@ function renderLeaderboard(board, myScore, myName) {
   });
   table.appendChild(tbody);
   container.appendChild(table);
+}
+
+// ── 미션 함수들 ─────────────────────────────────────────
+function initLevelMissions() {
+  // 모든 레벨에서 공통으로 등장하는 w≤1.0 일반 이모지에서 3개 랜덤 뽑기
+  const pool = EMOJI_DATA.filter(d => !d.pts && d.w <= 1.0).map(d => d.e);
+  const picked = [];
+  while(picked.length < MISSION_DEFS.length) {
+    const e = pool[Math.floor(Math.random() * pool.length)];
+    if(!picked.includes(e)) picked.push(e);
+  }
+  // 미션 순서 랜덤 셔플
+  const shuffled = [...MISSION_DEFS].sort(() => Math.random() - 0.5);
+  levelMissions = shuffled.map((def, i) => ({
+    emoji: picked[i], missionId: def.id, count: 0, done: false
+  }));
+  currentMissionIndex = 0;
+  updateMissionUI();
+}
+
+function trackMissionEmoji(emoji) {
+  if(currentMissionIndex >= levelMissions.length) return;
+  const m = levelMissions[currentMissionIndex];
+  if(m.done || m.emoji !== emoji) return;
+  m.count++;
+  updateMissionUI();
+  if(m.count >= 3) applyMissionEffect(m.missionId);
+}
+
+function applyMissionEffect(missionId) {
+  const m = levelMissions[currentMissionIndex];
+  if(m) m.done = true;
+  if(missionId === 'shrink') {
+    missionEffects.sizeScale = Math.max(0.25, missionEffects.sizeScale * 0.5);
+  } else if(missionId === 'score') {
+    missionEffects.scoreMulti = Math.min(3, missionEffects.scoreMulti + 1);
+  } else if(missionId === 'nodrop') {
+    missionEffects.noAutoDrop = true;
+  }
+  showMissionToast(missionId);
+  currentMissionIndex++;
+  updateMissionUI();
+}
+
+function showMissionToast(missionId) {
+  const def = MISSION_DEFS.find(d => d.id === missionId);
+  const msgs = {
+    shrink: `${def.icon} 이모지 크기 절반!`,
+    score:  `${def.icon} 점수 ${missionEffects.scoreMulti}배 적용!`,
+    nodrop: `${def.icon} 자동드롭 비활성화!`,
+  };
+  const el = document.createElement('div');
+  el.className = 'mission-toast';
+  el.textContent = msgs[missionId];
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2500);
+}
+
+function updateMissionBadges() {
+  const missionEmoji = currentMissionIndex < levelMissions.length ? levelMissions[currentMissionIndex].emoji : null;
+  floorItems.forEach(fi => {
+    fi.el.querySelector('.m-badge')?.remove();
+    if(missionEmoji && fi.e === missionEmoji) {
+      const mb = document.createElement('span');
+      mb.className = 'm-badge';
+      mb.textContent = 'M';
+      fi.el.appendChild(mb);
+    }
+  });
+}
+
+function updateMissionUI() {
+  const panel = document.getElementById('missionPanel');
+  if(!panel) return;
+  if(currentMissionIndex >= levelMissions.length) {
+    panel.innerHTML = '<div class="m-complete">🎉 완료!</div>';
+    return;
+  }
+  const m = levelMissions[currentMissionIndex];
+  panel.innerHTML = `<div class="m-item">
+    <span class="m-emoji">${m.emoji}</span>
+    <span class="m-progress">${m.count}/3</span>
+  </div>`;
+  updateMissionBadges();
 }
 
 // ── 축하 컨페티 ──────────────────────────────────────────
@@ -359,7 +468,7 @@ function emojiSize(w) {
   const base = sceneW * 0.068; // 기본 크기
   const effectiveW = Math.max(w, 0.1); // 무게 0도 1점(0.1) 크기로
   const t = Math.sqrt((Math.min(effectiveW,10) - 0.1) / 9.9); // 0~1
-  return Math.round(base * (1 + t * 3.5));
+  return Math.round(base * (1 + t * 3.5) * missionEffects.sizeScale);
 }
 
 // ── 창고 이모지 ────────────────────────────────────────
@@ -382,11 +491,18 @@ function randED() {
 }
 
 function addFloorItem() {
-  let d = randED();
-  // 같은 이모지 2개까지만 허용 (최대 10회 재시도)
+  // 20% 확률로 현재 미션 이모지 강제 등장
+  const missionEmoji = currentMissionIndex < levelMissions.length ? levelMissions[currentMissionIndex].emoji : null;
+  let d;
+  if(missionEmoji && Math.random() < 0.20) {
+    const mData = EMOJI_DATA.find(ed => ed.e === missionEmoji);
+    if(mData) d = mData;
+  }
+  if(!d) d = randED();
+  // 같은 이모지 중복 없음 (최대 10회 재시도)
   for(let retry = 0; retry < 10; retry++) {
     const count = floorItems.filter(f => f.e === d.e).length;
-    if(count < 2) break;
+    if(count < 1) break;
     d = randED();
   }
   const id = nextId++;
@@ -399,6 +515,13 @@ function addFloorItem() {
   badge.className = 'pts';
   badge.textContent = d.mystery ? '?' : (d.special ? '★' : (d.pts || toPoints(d.w)));
   el.appendChild(badge);
+  // 미션 이모지면 M 뱃지 표시
+  if(missionEmoji && d.e === missionEmoji) {
+    const mb = document.createElement('span');
+    mb.className = 'm-badge';
+    mb.textContent = 'M';
+    el.appendChild(mb);
+  }
   el.addEventListener('mousedown',  ev => startDrag(ev, d, el));
   el.addEventListener('touchstart', ev => startDragTouch(ev, d, el), {passive:false});
   floorShelf.appendChild(el);
@@ -544,6 +667,7 @@ function tryDrop(cx,cy) {
   const dropPts = dragging.data.pts || toPoints(dragging.data.w);
   items.push({sx:sv.x, sy:sv.y, e:dragging.data.e, w:dragging.data.w, dropT:performance.now()});
   score += dropPts;
+  trackMissionEmoji(dragging.data.e);
   removeFloorItem(dragging.sourceEl);
   playSFX('put');
   spawnDropBurst(cx, cy);
@@ -850,6 +974,7 @@ function starGoldenTime(screenCx, screenCy) {
       it.e = isSuperStar ? '🌟' : '⭐';
       it.goldenScore = isSuperStar ? 100 : 10;
       it.golden = true;
+      it.tapCount = 0;
     });
 
     // 쟁반 골든 오버레이 (노란 섬광)
@@ -904,6 +1029,10 @@ function endGoldenTime() {
 let _gcInterval = null; // 골든 카운트다운 interval (일시정지용)
 function showGoldenCountdown(onComplete) {
   goldenCountdownActive = true;
+  // 골든타임 진입 시 위기 타이머 취소
+  if(criticalTimer){ clearTimeout(criticalTimer); criticalTimer=null; }
+  criticalZone = 0;
+  document.getElementById('vignetteOverlay').style.opacity = '0';
   const el = document.createElement('div');
   el.className = 'golden-toast countdown';
   el.innerHTML = '<div class="gt-title">⭐ 골든타임</div><div class="gt-sub">별을 터치하세요</div><div class="gt-num">3</div>';
@@ -985,13 +1114,21 @@ function harvestGoldenStar(cx, cy) {
 
   if(closest === null) return false;
 
-  // 수확!
   const it = items[closest];
-  const pts = it.goldenScore || 10;
+  it.tapCount = (it.tapCount || 0) + 1;
+
+  if(it.tapCount < 3) {
+    // 아직 성장 중 — 작은 이펙트만
+    spawnDropBurst(cx, cy);
+    return true;
+  }
+
+  // 3번 탭 완료 → 수확!
+  const base = it.goldenScore || 10;
+  const pts = base * 5; // 성장 완료 보너스
   score += pts;
   items.splice(closest, 1);
 
-  // 이펙트
   spawnDropBurst(cx, cy);
   spawnScoreStars(cx, cy, pts);
 
@@ -1124,10 +1261,10 @@ function drawEmojis() {
     ctx.scale(scX, scY);
     ctx.font=`${fs}px serif`;
     ctx.textAlign='center'; ctx.textBaseline='middle';
-    // 골든 별 글로우 + 크기 펄스 효과
+    // 골든 별 글로우 + 탭 횟수에 따른 성장
     if(it.golden) {
-      const pulse = 1 + 0.12 * Math.sin(now * 0.006);
-      ctx.scale(pulse, pulse);
+      const GROW = [1.0, 1.5, 2.1, 2.8];
+      ctx.scale(GROW[it.tapCount || 0], GROW[it.tapCount || 0]);
       const glow = 0.7 + 0.3 * Math.sin(now * 0.008);
       ctx.shadowColor=`rgba(255,215,0,${glow})`;
       ctx.shadowBlur=fs*0.8;
@@ -1184,8 +1321,12 @@ function init() {
   paused=false; _pauseData=null;
   level = 1;
   applyLevel(level);
+  missionEffects = { sizeScale:1.0, scoreMulti:1, noAutoDrop:false };
+  currentMissionIndex = 0;
+  levelMissions = [];
   items=[]; tiltX=0; tiltY=0; shakeTimer=0; score=0; running=true; lastDropTime=performance.now();
   frozen=false; if(frozenTimer){clearTimeout(frozenTimer);frozenTimer=null;}
+  criticalZone=0; if(criticalTimer){clearTimeout(criticalTimer);criticalTimer=null;}
   frostFlakes.forEach(el=>el.remove()); frostFlakes=[];
   document.getElementById('frostOverlay').classList.remove('active');
   goldenTime=false; if(goldenTimer){clearTimeout(goldenTimer);goldenTimer=null;}
@@ -1199,6 +1340,7 @@ function init() {
   trayGroup.style.transition='';
   trayGroup.style.transform='';
   initFloor(); updateHUD(0,0);
+  initLevelMissions();
   if(rafId) cancelAnimationFrame(rafId);
   showGuideMotion();
   loop();
@@ -1270,7 +1412,7 @@ function spawnFallingEmoji(it) {
 
 // ── 자동 드롭 (10초 무행동 시) ────────────────────────
 function autoDrop() {
-  if(!running || dragging || goldenCountdownActive || goldenTime || floorItems.length===0) return;
+  if(!running || dragging || goldenCountdownActive || goldenTime || missionEffects.noAutoDrop || floorItems.length===0) return;
   const normalItems = floorItems.filter(f => !f.special && f.w < 10);
   if(normalItems.length === 0) return;
   const fi = normalItems[Math.floor(Math.random()*normalItems.length)];
@@ -1285,6 +1427,7 @@ function autoDrop() {
   }
   items.push({sx, sy, e:fi.e, w:fi.w, dropT:performance.now()});
   score += toPoints(fi.w);
+  trackMissionEmoji(fi.e);
   // 드롭 위치를 화면 좌표로 변환해서 반짝이 효과
   const sc = svgToScene(sx, sy);
   const sceneRect = scene.getBoundingClientRect();
@@ -1332,20 +1475,55 @@ function loop() {
     danger = Math.min(1, mag/TILT_LIMIT);
   } else {
     const {tx,ty} = computeTorque();
-    tiltX += (ty*4  - tiltX) * .08;
-    tiltY += (tx*6  - tiltY) * .08;
+    // 토크 계수를 높여 무게 차이가 시각적으로 잘 보이도록
+    tiltX += (ty*12 - tiltX) * .10;
+    tiltY += (tx*12 - tiltY) * .10;
 
     const clX = Math.max(-TILT_LIMIT*1.1, Math.min(TILT_LIMIT*1.1, tiltX));
     const clY = Math.max(-TILT_LIMIT*1.1, Math.min(TILT_LIMIT*1.1, tiltY));
-    trayGroup.style.transform = `rotateX(${-clX}deg) rotateY(${clY}deg)`;
 
     const mag = Math.sqrt(tiltX**2+tiltY**2);
     danger = Math.min(1, mag/TILT_LIMIT);
 
-    if(mag >= TILT_LIMIT){ gameOver(); return; }
+    // 구간 결정: 0=안전 1=90~95% 2=95~99% 3=100%+
+    const newZone = danger >= 1.0 ? 3 : danger >= 0.95 ? 2 : danger >= 0.9 ? 1 : 0;
+    if(newZone === 0) {
+      if(criticalZone > 0) { criticalZone=0; clearTimeout(criticalTimer); criticalTimer=null; }
+    } else if(newZone > criticalZone) {
+      // 더 위험한 구간 진입 → 타이머 재시작
+      if(criticalTimer) clearTimeout(criticalTimer);
+      criticalZone = newZone;
+      criticalStart = performance.now();
+      criticalTimer = setTimeout(() => { criticalZone=0; criticalTimer=null; gameOver(); }, CRITICAL_DURATIONS[criticalZone]);
+    } else if(newZone < criticalZone) {
+      criticalZone = newZone; // 타이머는 유지 (관대하게)
+    }
 
-    // 이모지 미끄러짐 처리
-    slideEmojis(danger);
+    // 흔들림: zone에 따라 강도 차등
+    if(criticalZone > 0) {
+      const dur = CRITICAL_DURATIONS[criticalZone];
+      const elapsed = Math.min(1, (performance.now() - criticalStart) / dur);
+      const amp = criticalZone === 3 ? 4 + elapsed * 18
+                : criticalZone === 2 ? 2 + elapsed * 8
+                :                      0.5 + elapsed * 3;
+      const freq = criticalZone === 3 ? 0.012 + elapsed * 0.018
+                 : criticalZone === 2 ? 0.008 + elapsed * 0.010
+                 :                      0.005 + elapsed * 0.006;
+      const shake = amp * Math.sin(performance.now() * freq);
+      trayGroup.style.transform = `rotateX(${-(clX + shake * 0.5)}deg) rotateY(${clY + shake}deg)`;
+    } else {
+      trayGroup.style.transform = `rotateX(${-clX}deg) rotateY(${clY}deg)`;
+    }
+
+    // 비네팅: 90% 이상부터 점점 붉어짐
+    const vignette = document.getElementById('vignetteOverlay');
+    if(danger >= 0.9) {
+      const intensity = (danger - 0.9) / 0.1; // 0~1
+      vignette.style.background = `radial-gradient(ellipse at center, transparent 35%, rgba(220,30,30,${intensity * 0.7}) 100%)`;
+      vignette.style.opacity = '1';
+    } else {
+      vignette.style.opacity = '0';
+    }
   }
 
   updateHUD(score, danger);
@@ -1355,13 +1533,14 @@ function loop() {
   // 레벨 클리어 판정
   if(score >= currentGoal) { levelClear(); return; }
 
-  if(!frozen && danger > DANGER_WARN){
+  if(!frozen && criticalZone === 0 && danger > DANGER_WARN) {
     shakeTimer++;
     if(shakeTimer%6<3) trayGroup.style.transform += ` translateX(${(Math.random()-.5)*5}px)`;
-  } else { shakeTimer=0; }
+  } else if(criticalZone === 0) { shakeTimer=0; }
 
   rafId = requestAnimationFrame(loop);
 }
+
 
 // ── HUD 업데이트 ────────────────────────────────────────
 function updateHUD(sc, danger) {
@@ -1387,6 +1566,32 @@ function updateHUD(sc, danger) {
   const df=document.getElementById('dangerFill');
   df.style.width=pct+'%';
   df.style.background=danger<.4?'linear-gradient(90deg,#40C870,#80e8a0)':danger<.7?'linear-gradient(90deg,#F4A535,#f8c070)':'linear-gradient(90deg,#E84040,#ff8080)';
+
+  // 기울기 방향 화살표 (균형 복원 방향 = 기울기 반대)
+  const tiltArrow = document.getElementById('tiltArrow');
+  const tiltArrowSvg = document.getElementById('tiltArrowSvg');
+  if(running && mag > TILT_LIMIT * 0.1) {
+    tiltArrow.classList.add('active');
+    // 화살표는 기울어진 반대 방향(무게를 추가해야 할 방향)을 가리킴
+    // SVG 폴리곤이 위(0°)를 기본 방향으로 그려져 있음
+    // tiltY>0 = 오른쪽 무거움 → 왼쪽을 가리켜야 → rotate(-90deg)
+    // tiltX>0 = 아래쪽 무거움 → 위쪽을 가리켜야 → rotate(0deg)
+    const arrowAngle = Math.atan2(-tiltY, tiltX) * 180 / Math.PI;
+    tiltArrowSvg.style.transform = `rotate(${arrowAngle}deg)`;
+    // 위험도에 따라 색상 변경
+    const arrowColor = danger < .4 ? '#40C870' : danger < .7 ? '#F4A535' : '#E84040';
+    tiltArrowSvg.querySelector('polygon').setAttribute('fill', arrowColor);
+  } else {
+    tiltArrow.classList.remove('active');
+  }
+
+  // 위험도 80% 이상이면 😱 깜빡
+  const dangerEmoji = document.getElementById('dangerEmoji');
+  if(running && danger >= 0.7) {
+    dangerEmoji.classList.add('active');
+  } else {
+    dangerEmoji.classList.remove('active');
+  }
 }
 
 // ── 레벨 클리어 ─────────────────────────────────────────
@@ -1394,7 +1599,11 @@ let _lcInterval = null; // 레벨 클리어 카운트다운 interval (일시정�
 function levelClear() {
   running = false;
   cancelAnimationFrame(rafId);
+  criticalZone=0; if(criticalTimer){clearTimeout(criticalTimer);criticalTimer=null;}
+  document.getElementById('vignetteOverlay').style.opacity='0';
   countdownTimer.classList.remove('active');
+  document.getElementById('tiltArrow').classList.remove('active');
+  document.getElementById('dangerEmoji').classList.remove('active');
   stopGoldenBGM();
   playSFX('levelup');
 
@@ -1519,7 +1728,11 @@ function showGameOverScreen() {
 // ── 게임오버 ───────────────────────────────────────────
 function gameOver() {
   running=false; cancelAnimationFrame(rafId);
+  criticalZone=0; if(criticalTimer){clearTimeout(criticalTimer);criticalTimer=null;}
+  document.getElementById('vignetteOverlay').style.opacity='0';
   countdownTimer.classList.remove('active');
+  document.getElementById('tiltArrow').classList.remove('active');
+  document.getElementById('dangerEmoji').classList.remove('active');
   stopBGM(); stopGoldenBGM();
   playSFX('drop');
 
@@ -1534,7 +1747,6 @@ function gameOver() {
   //    기울기 방향으로 초기 속도 부여
   const sceneRect = scene.getBoundingClientRect();
   const flipDirX = tiltY > 0 ? 1 : -1; // rotateY → 좌우 방향
-  const flipDirY = tiltX > 0 ? 1 : -1; // rotateX → 앞뒤 방향
 
   items.forEach((it, idx) => {
     // 씬 픽셀 위치 계산

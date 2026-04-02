@@ -88,6 +88,8 @@
       </div>
       <div class="danger-pct" id="dangerVal">0%</div>
     </div>
+    <!-- 위험 이모지 -->
+    <div id="dangerEmoji" class="danger-emoji">😱</div>
   </div>
 
   <div class="main-area">
@@ -177,6 +179,14 @@
         <!-- 서리 오버레이 -->
         <div id="frostOverlay"></div>
 
+        <!-- 기울기 방향 화살표 가이드 -->
+        <div id="tiltArrow" class="tilt-arrow">
+          <svg id="tiltArrowSvg" class="tilt-arrow-svg" viewBox="0 0 44 44" width="44" height="44">
+            <polygon points="22,4 40,38 22,30 4,38" fill="#F4A535" stroke="none" opacity="0.92"/>
+          </svg>
+          <div class="tilt-arrow-label">균형</div>
+        </div>
+
         <!-- 카운트다운 타이머 -->
         <div class="countdown-timer" id="countdownTimer">
           <div style="position:relative; width:48px; height:48px;">
@@ -193,9 +203,14 @@
       </div>
     </div>
 
+    <!-- 미션 패널 -->
+    <div class="mission-wrap">
+      <div class="mission-title">Mission</div>
+      <div id="missionPanel" class="mission-panel"></div>
+    </div>
+
     <!-- 창고 -->
     <div class="floor-wrap">
-      <div class="floor-label">이모지를 드래그해서 쟁반에 올리세요</div>
       <div class="floor-shelf" id="floorShelf"></div>
     </div>
   </div>
@@ -282,6 +297,7 @@
   <div class="cleaning-box">🧹 청소중...</div>
 </div>
 
+<div id="vignetteOverlay"></div>
 <div id="dragGhost"></div>
 
 <script src="game.js"></script>
