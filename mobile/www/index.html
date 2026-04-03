@@ -54,8 +54,8 @@
 
 </head>
 <body>
-<button class="home-btn" id="homeBtn" title="홈으로 이동" onclick="confirmGoHome()">🏠</button>
-<button class="mute-btn" id="muteBtn" title="사운드 켜기/끄기">🔊</button>
+<button class="home-btn" id="homeBtn" title="홈으로 이동" onclick="confirmGoHome()"><img src="./icon_home.svg" alt=""></button>
+<button class="mute-btn" id="muteBtn" title="사운드 켜기/끄기"><img src="./icon_sound.svg" alt=""></button>
 
 <div class="game-wrap">
 
@@ -94,6 +94,10 @@
 
   <div class="main-area">
     <div class="scene-wrap">
+
+      <!-- 완료 미션 효과 표시 -->
+      <div id="missionDoneList" class="mission-done-list"></div>
+
       <div class="scene" id="scene">
         <!-- 받침대 SVG (고정, 기울어지지 않음) -->
         <svg id="standSvg" viewBox="35 45 490 330" xmlns="http://www.w3.org/2000/svg"
@@ -178,6 +182,7 @@
 
         <!-- 서리 오버레이 -->
         <div id="frostOverlay"></div>
+       
 
         <!-- 기울기 방향 화살표 가이드 -->
         <div id="tiltArrow" class="tilt-arrow">
@@ -211,6 +216,18 @@
 
     <!-- 창고 -->
     <div class="floor-wrap">
+      <div class="item-btns">
+        <button class="item-btn" id="btnShuffle" onclick="useItemShuffle()">
+          <span class="item-btn-badge" id="shuffleCount">0</span>
+          <span class="item-btn-icon">🔃</span>
+          <span class="item-btn-label">섞기</span>
+        </button>
+        <button class="item-btn" id="btnClean" onclick="useItemClean()">
+          <span class="item-btn-badge" id="cleanCount">0</span>
+          <span class="item-btn-icon">🧹</span>
+          <span class="item-btn-label">청소</span>
+        </button>
+      </div>
       <div class="floor-shelf" id="floorShelf"></div>
     </div>
   </div>

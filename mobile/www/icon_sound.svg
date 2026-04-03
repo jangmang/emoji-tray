@@ -1,0 +1,9 @@
+<svg width="48" height="48" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <!-- speaker -->
+  <path d="M4 10V14H8L12 18V6L8 10H4Z" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+
+  <!-- waves (compact, not stretched) -->
+  <path d="M15 10C16.5 11.5 16.5 12.5 15 14" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"></path>
+
+  <path d="M18 9C20 11.5 20 12.5 18 15" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"></path>
+</svg>

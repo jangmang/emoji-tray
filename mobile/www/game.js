@@ -47,7 +47,7 @@ function confirmGoHome() {
 const muteBtn = document.getElementById('muteBtn');
 muteBtn.addEventListener('click', () => {
   SND.muted = !SND.muted;
-  muteBtn.textContent = SND.muted ? '🔇' : '🔊';
+  muteBtn.innerHTML = SND.muted ? '<img src="./icon_mute.svg" alt="음소거">' : '<img src="./icon_sound.svg" alt="사운드">';
   if(SND.muted) {
     SND.bgm.pause();
     SND.goldentime.pause();
@@ -137,9 +137,9 @@ document.addEventListener('visibilitychange', () => {
 
 // ── 미션 시스템 ─────────────────────────────────────────
 const MISSION_DEFS = [
-  { id:'shrink', icon:'🤏', label:'크기 절반' },
-  { id:'score',  icon:'🌟', label:'점수 배율' },
-  { id:'nodrop', icon:'🕝', label:'자동드롭 OFF' },
+  { id:'shrink',  icon:'🤏', desc:'이모지 크기 줄임' },
+  { id:'score',   icon:'💰', desc:'점수 ×2 획득' },
+  { id:'nodrop',  icon:'🕝', desc:'자동드롭 비활성' },
 ];
 
 // ── 이모지 데이터 ──────────────────────────────────────
@@ -218,6 +218,7 @@ function applyLevel(lv) {
 let levelMissions = []; // [{emoji, missionId, count, done}]
 let currentMissionIndex = 0;
 let missionEffects = { sizeScale:1.0, scoreMulti:1, noAutoDrop:false };
+let itemCounts = { shuffle:3, clean:3 };
 let items=[], tiltX=0, tiltY=0, running=false, rafId=null, shakeTimer=0;
 let frozen=false, frozenTimer=null;
 let goldenTime=false, goldenTimer=null;
@@ -285,18 +286,19 @@ function renderLeaderboard(board, myScore, myName) {
 
 // ── 미션 함수들 ─────────────────────────────────────────
 function initLevelMissions() {
-  // 모든 레벨에서 공통으로 등장하는 w≤1.0 일반 이모지에서 3개 랜덤 뽑기
   const pool = EMOJI_DATA.filter(d => !d.pts && d.w <= 1.0).map(d => d.e);
-  const picked = [];
-  while(picked.length < MISSION_DEFS.length) {
-    const e = pool[Math.floor(Math.random() * pool.length)];
-    if(!picked.includes(e)) picked.push(e);
-  }
-  // 미션 순서 랜덤 셔플
   const shuffled = [...MISSION_DEFS].sort(() => Math.random() - 0.5);
-  levelMissions = shuffled.map((def, i) => ({
-    emoji: picked[i], missionId: def.id, count: 0, done: false
-  }));
+  const usedEmojis = [];
+  levelMissions = shuffled.map(def => {
+    // 미션마다 서로 다른 이모지 3개 뽑기 (전체 미션 간 중복도 없앰)
+    const emojis = [];
+    while(emojis.length < 3) {
+      const e = pool[Math.floor(Math.random() * pool.length)];
+      if(!emojis.includes(e) && !usedEmojis.includes(e)) emojis.push(e);
+    }
+    usedEmojis.push(...emojis);
+    return { emojis, missionId: def.id, collected: [false, false, false], done: false };
+  });
   currentMissionIndex = 0;
   updateMissionUI();
 }
@@ -304,10 +306,12 @@ function initLevelMissions() {
 function trackMissionEmoji(emoji) {
   if(currentMissionIndex >= levelMissions.length) return;
   const m = levelMissions[currentMissionIndex];
-  if(m.done || m.emoji !== emoji) return;
-  m.count++;
-  updateMissionUI();
-  if(m.count >= 3) applyMissionEffect(m.missionId);
+  if(m.done) return;
+  const idx = m.emojis.findIndex((e, i) => e === emoji && !m.collected[i]);
+  if(idx === -1) return;
+  m.collected[idx] = true;
+  updateMissionUI(true);
+  if(m.collected.every(c => c)) applyMissionEffect(m.missionId);
 }
 
 function applyMissionEffect(missionId) {
@@ -321,29 +325,55 @@ function applyMissionEffect(missionId) {
     missionEffects.noAutoDrop = true;
   }
   showMissionToast(missionId);
-  currentMissionIndex++;
-  updateMissionUI();
+
+  // 3개 채워진 상태를 1.5초간 보여준 후 다음 미션으로 전환
+  const wrap = document.querySelector('.mission-wrap');
+  if(wrap) wrap.classList.add('m-clear');
+  setTimeout(() => {
+    if(wrap) wrap.classList.remove('m-clear');
+    addMissionDoneBadge(missionId);
+    currentMissionIndex++;
+    updateMissionUI();
+  }, 1500);
+}
+
+function addMissionDoneBadge(missionId) {
+  const list = document.getElementById('missionDoneList');
+  if(!list) return;
+  const def = MISSION_DEFS.find(d => d.id === missionId);
+  if(!def) return;
+  const item = document.createElement('div');
+  item.className = 'mdb-item';
+  item.innerHTML = `<span class="mdb-check">✔️</span><span class="mdb-text">${def.desc}</span>`;
+  list.appendChild(item);
 }
 
 function showMissionToast(missionId) {
-  const def = MISSION_DEFS.find(d => d.id === missionId);
-  const msgs = {
-    shrink: `${def.icon} 이모지 크기 절반!`,
-    score:  `${def.icon} 점수 ${missionEffects.scoreMulti}배 적용!`,
-    nodrop: `${def.icon} 자동드롭 비활성화!`,
+  const lines = {
+    shrink: { icon:'🤏', title:'미션 달성!', desc:'이모지 크기 줄임' },
+    score:  { icon:'💰', title:'미션 달성!', desc:`점수 ${missionEffects.scoreMulti}배 적용` },
+    nodrop: { icon:'🕝', title:'미션 달성!', desc:'자동드롭 비활성화' },
   };
+  const { icon, title, desc } = lines[missionId];
   const el = document.createElement('div');
   el.className = 'mission-toast';
-  el.textContent = msgs[missionId];
+  el.innerHTML = `<div class="mt-icon">${icon}</div><div class="mt-title">${title}</div><div class="mt-desc">${desc}</div>`;
   document.body.appendChild(el);
-  setTimeout(() => el.remove(), 2500);
+  // 팝업 표시 동안 게임 일시정지
+  running = false;
+  setTimeout(() => {
+    el.remove();
+    running = true;
+    loop();
+  }, 3000);
 }
 
 function updateMissionBadges() {
-  const missionEmoji = currentMissionIndex < levelMissions.length ? levelMissions[currentMissionIndex].emoji : null;
+  const m = currentMissionIndex < levelMissions.length ? levelMissions[currentMissionIndex] : null;
+  const targets = m ? m.emojis.filter((_, i) => !m.collected[i]) : [];
   floorItems.forEach(fi => {
     fi.el.querySelector('.m-badge')?.remove();
-    if(missionEmoji && fi.e === missionEmoji) {
+    if(targets.includes(fi.e)) {
       const mb = document.createElement('span');
       mb.className = 'm-badge';
       mb.textContent = 'M';
@@ -352,18 +382,37 @@ function updateMissionBadges() {
   });
 }
 
-function updateMissionUI() {
+function updateMissionUI(pop = false) {
   const panel = document.getElementById('missionPanel');
   if(!panel) return;
+
   if(currentMissionIndex >= levelMissions.length) {
-    panel.innerHTML = '<div class="m-complete">🎉 완료!</div>';
+    panel.innerHTML = '<div class="m-complete">🎉</div>';
     return;
   }
+
   const m = levelMissions[currentMissionIndex];
-  panel.innerHTML = `<div class="m-item">
-    <span class="m-emoji">${m.emoji}</span>
-    <span class="m-progress">${m.count}/3</span>
-  </div>`;
+  const def = MISSION_DEFS.find(d => d.id === m.missionId);
+
+  let slotsHtml = '';
+  for(let i = 0; i < 3; i++) {
+    if(i > 0) slotsHtml += '<span class="m-slot-sep">+</span>';
+    slotsHtml += m.collected[i]
+      ? `<div class="m-slot filled" data-slot="${i}">${m.emojis[i]}</div>`
+      : `<div class="m-slot empty" data-slot="${i}"><span class="m-slot-ph">${m.emojis[i]}</span></div>`;
+  }
+
+  panel.innerHTML = `
+    <div class="m-slots">${slotsHtml}</div>
+    <div class="m-effect-desc">${def.desc}</div>`;
+
+  if(pop) {
+    requestAnimationFrame(() => {
+      const lastIdx = m.collected.lastIndexOf(true);
+      const slot = panel.querySelector(`.m-slot[data-slot="${lastIdx}"]`);
+      if(slot) { slot.classList.remove('pop'); void slot.offsetWidth; slot.classList.add('pop'); }
+    });
+  }
   updateMissionBadges();
 }
 
@@ -491,11 +540,15 @@ function randED() {
 }
 
 function addFloorItem() {
-  // 20% 확률로 현재 미션 이모지 강제 등장
-  const missionEmoji = currentMissionIndex < levelMissions.length ? levelMissions[currentMissionIndex].emoji : null;
+  // 미수집 미션 이모지 목록
+  const curM = currentMissionIndex < levelMissions.length ? levelMissions[currentMissionIndex] : null;
+  const targets = curM ? curM.emojis.filter((_, i) => !curM.collected[i]) : [];
   let d;
-  if(missionEmoji && Math.random() < 0.20) {
-    const mData = EMOJI_DATA.find(ed => ed.e === missionEmoji);
+  // 15% 확률로 미수집 미션 이모지 강제 등장 (창고에 미션 이모지 없을 때만)
+  const missionAlreadyInShelf = targets.some(e => floorItems.some(f => f.e === e));
+  if(targets.length > 0 && !missionAlreadyInShelf && Math.random() < 0.15) {
+    const pick = targets[Math.floor(Math.random() * targets.length)];
+    const mData = EMOJI_DATA.find(ed => ed.e === pick);
     if(mData) d = mData;
   }
   if(!d) d = randED();
@@ -513,10 +566,10 @@ function addFloorItem() {
   el.appendChild(emojiSpan);
   const badge = document.createElement('span');
   badge.className = 'pts';
-  badge.textContent = d.mystery ? '?' : (d.special ? '★' : (d.pts || toPoints(d.w)));
+  badge.textContent = d.mystery ? '?' : (d.special ? '★' : (d.pts || Math.round(d.w * 10)));
   el.appendChild(badge);
   // 미션 이모지면 M 뱃지 표시
-  if(missionEmoji && d.e === missionEmoji) {
+  if(targets.includes(d.e)) {
     const mb = document.createElement('span');
     mb.className = 'm-badge';
     mb.textContent = 'M';
@@ -535,6 +588,79 @@ function removeFloorItem(el) {
 function initFloor() {
   floorShelf.innerHTML=''; floorItems=[];
   for(let i=0;i<FLOOR_COUNT;i++) addFloorItem();
+}
+
+// ── 아이템 버튼 ────────────────────────────────────────
+function updateItemBtns() {
+  const sc = document.getElementById('shuffleCount');
+  const cc = document.getElementById('cleanCount');
+  const bs = document.getElementById('btnShuffle');
+  const bc = document.getElementById('btnClean');
+  if(sc) sc.textContent = itemCounts.shuffle;
+  if(cc) cc.textContent = itemCounts.clean;
+  if(bs) { bs.disabled = itemCounts.shuffle <= 0; bs.style.display = itemCounts.shuffle <= 0 ? 'none' : ''; }
+  if(bc) { bc.disabled = itemCounts.clean <= 0;   bc.style.display = itemCounts.clean <= 0   ? 'none' : ''; }
+}
+
+let _itemLock = false;
+
+function useItemShuffle() {
+  if(_itemLock || !running || itemCounts.shuffle <= 0) return;
+  _itemLock = true;
+  itemCounts.shuffle--;
+  updateItemBtns();
+  floorShelf.classList.add('shelf-flash');
+  floorShelf.addEventListener('animationend', () => {
+    floorShelf.classList.remove('shelf-flash');
+    floorShelf.innerHTML=''; floorItems=[];
+    for(let i=0;i<FLOOR_COUNT;i++) {
+      addFloorItem();
+      // 각 이모지 칩에 팝 등장 딜레이 적용
+      const el = floorItems[floorItems.length - 1].el;
+      el.style.setProperty('--pop-delay', `${i * 40}ms`);
+      el.classList.add('item-pop-in');
+      el.addEventListener('animationend', () => el.classList.remove('item-pop-in'), {once:true});
+    }
+    _itemLock = false;
+  }, {once:true});
+}
+
+function useItemClean() {
+  if(_itemLock || !running || itemCounts.clean <= 0 || items.length === 0) return;
+  _itemLock = true;
+  itemCounts.clean--;
+  updateItemBtns();
+  if(criticalTimer) { clearTimeout(criticalTimer); criticalTimer = null; }
+  criticalZone = 0;
+  document.getElementById('vignetteOverlay').style.opacity = '0';
+
+  const sceneWrap = document.querySelector('.scene-wrap');
+  const sweep = document.createElement('div');
+  sweep.className = 'sweep-motion';
+  sweep.textContent = '🧹';
+  sceneWrap.appendChild(sweep);
+
+  const dustInterval = setInterval(() => {
+    const count = 2 + Math.floor(Math.random() * 2);
+    for(let i = 0; i < count; i++) {
+      const dust = document.createElement('div');
+      dust.className = 'sweep-dust';
+      dust.textContent = '☁️';
+      const pct = 25 + Math.random() * 50;
+      const top = 15 + Math.random() * 30;
+      dust.style.cssText = `left:${pct}%;top:${top}%;--dx:${(Math.random()-0.5)*40}px;--dy:${-(15+Math.random()*20)}px;`;
+      sceneWrap.appendChild(dust);
+      dust.addEventListener('animationend', () => dust.remove(), {once:true});
+    }
+  }, 150);
+
+  sweep.addEventListener('animationend', () => {
+    sweep.remove();
+    clearInterval(dustInterval);
+    items = [];
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    _itemLock = false;
+  }, {once:true});
 }
 
 // ── 드래그 ─────────────────────────────────────────────
@@ -564,6 +690,7 @@ document.addEventListener('touchmove', e=>{ if(!dragging)return; e.preventDefaul
 document.addEventListener('touchend',  e=>{ if(!dragging)return; ghost.style.display='none'; dropHighlight.setAttribute('opacity','0'); if(!tryDrop(e.changedTouches[0].clientX,e.changedTouches[0].clientY)) dragging.sourceEl.classList.remove('dragging'); dragging=null; });
 
 function moveGhost(cx,cy){ ghost.style.left=cx+'px'; ghost.style.top=cy+'px'; spawnSparkles(cx,cy); }
+
 
 // ── 반짝이 꼬리 ──────────────────────────────────────────
 const SPARKLE_COLORS = ['#FFD700','#FFA500','#FF6347','#FF69B4','#87CEEB','#ADFF2F','#fff'];
@@ -672,6 +799,7 @@ function tryDrop(cx,cy) {
   playSFX('put');
   spawnDropBurst(cx, cy);
   spawnScoreStars(cx, cy, dropPts);
+  spawnScorePopup(cx, cy, dropPts);
   return true;
 }
 
@@ -1117,15 +1245,15 @@ function harvestGoldenStar(cx, cy) {
   const it = items[closest];
   it.tapCount = (it.tapCount || 0) + 1;
 
-  if(it.tapCount < 3) {
-    // 아직 성장 중 — 작은 이펙트만
+  if(it.tapCount < 2) {
+    // 1번 탭 — 성장 이펙트
     spawnDropBurst(cx, cy);
     return true;
   }
 
-  // 3번 탭 완료 → 수확!
+  // 2번 탭 완료 → 수확!
   const base = it.goldenScore || 10;
-  const pts = base * 5; // 성장 완료 보너스
+  const pts = base * 5;
   score += pts;
   items.splice(closest, 1);
 
@@ -1161,6 +1289,18 @@ function spawnGoldenBurst(cx, cy) {
     document.body.appendChild(el);
     el.addEventListener('animationend', () => el.remove());
   }
+}
+
+// ── 점수 팝업 (드롭 시 위로 튀어오름) ──────────────────────
+function spawnScorePopup(cx, cy, pts) {
+  const el = document.createElement('div');
+  el.className = 'score-popup';
+  el.textContent = `+${pts}`;
+  const hue = pts >= 20 ? '#ffd700' : pts >= 10 ? '#7fffff' : '#ffffff';
+  const fs = pts >= 20 ? 1.8 : pts >= 10 ? 1.5 : 1.2;
+  el.style.cssText = `left:${cx}px;top:${cy}px;--dur:900ms;--fs:${fs}rem;color:${hue};text-shadow:0 0 10px ${hue},0 2px 0 rgba(0,0,0,.6);`;
+  document.body.appendChild(el);
+  el.addEventListener('animationend', () => el.remove());
 }
 
 // ── 드롭 시 반짝이 폭발 ─────────────────────────────────
@@ -1246,7 +1386,9 @@ function dropBounce(t) {
 function drawEmojis() {
   ctx.clearRect(0,0,canvas.width,canvas.height);
   const now = performance.now();
-  const goldenFs = emojiSize(0.1); // 골든 별 통일 크기 (작게)
+  // 골든 별은 sizeScale 무시 (원래 크기 유지)
+  const sceneW = scene.getBoundingClientRect().width;
+  const goldenFs = Math.round(sceneW * 0.068);
   items.forEach(it=>{
     const fs = it.golden ? goldenFs : emojiSize(it.w);
     const sc = svgToScene(it.sx, it.sy);
@@ -1263,16 +1405,19 @@ function drawEmojis() {
     ctx.textAlign='center'; ctx.textBaseline='middle';
     // 골든 별 글로우 + 탭 횟수에 따른 성장
     if(it.golden) {
-      const GROW = [1.0, 1.5, 2.1, 2.8];
+      const GROW = [1.0, 3.0];
       ctx.scale(GROW[it.tapCount || 0], GROW[it.tapCount || 0]);
       const glow = 0.7 + 0.3 * Math.sin(now * 0.008);
-      ctx.shadowColor=`rgba(255,215,0,${glow})`;
+      const isHot = (it.tapCount || 0) >= 1;
+      ctx.shadowColor = isHot ? `rgba(255,60,60,${glow})` : `rgba(255,215,0,${glow})`;
       ctx.shadowBlur=fs*0.8;
       ctx.shadowOffsetY=0;
-      // 이중 그림자로 섬광 느낌
+      // 1번 탭 이후 빨간 글로우 + filter
+      if(isHot) ctx.filter = 'hue-rotate(140deg) saturate(3)';
       ctx.fillText(it.e, 0, 0);
+      ctx.filter = 'none';
       ctx.shadowBlur=fs*1.5;
-      ctx.shadowColor=`rgba(255,200,0,${glow*0.4})`;
+      ctx.shadowColor = isHot ? `rgba(255,60,60,${glow*0.5})` : `rgba(255,200,0,${glow*0.4})`;
     } else {
       ctx.shadowColor='rgba(0,0,0,.6)';
       ctx.shadowBlur=Math.max(6,fs*.22);
@@ -1322,8 +1467,12 @@ function init() {
   level = 1;
   applyLevel(level);
   missionEffects = { sizeScale:1.0, scoreMulti:1, noAutoDrop:false };
+  itemCounts = { shuffle:3, clean:3 };
+  updateItemBtns();
   currentMissionIndex = 0;
   levelMissions = [];
+  const doneList = document.getElementById('missionDoneList');
+  if(doneList) doneList.innerHTML = '';
   items=[]; tiltX=0; tiltY=0; shakeTimer=0; score=0; running=true; lastDropTime=performance.now();
   frozen=false; if(frozenTimer){clearTimeout(frozenTimer);frozenTimer=null;}
   criticalZone=0; if(criticalTimer){clearTimeout(criticalTimer);criticalTimer=null;}
@@ -1426,20 +1575,23 @@ function autoDrop() {
     if(countNearby(sx, sy) < MAX_OVERLAP) break;
   }
   items.push({sx, sy, e:fi.e, w:fi.w, dropT:performance.now()});
-  score += toPoints(fi.w);
+  const autoPts = toPoints(fi.w);
+  score += autoPts;
   trackMissionEmoji(fi.e);
   // 드롭 위치를 화면 좌표로 변환해서 반짝이 효과
   const sc = svgToScene(sx, sy);
   const sceneRect = scene.getBoundingClientRect();
-  spawnDropBurst(sceneRect.left + sc.x, sceneRect.top + sc.y);
-  spawnScoreStars(sceneRect.left + sc.x, sceneRect.top + sc.y, toPoints(fi.w));
+  const dropX = sceneRect.left + sc.x, dropY = sceneRect.top + sc.y;
+  spawnDropBurst(dropX, dropY);
+  spawnScoreStars(dropX, dropY, autoPts);
+  spawnScorePopup(dropX, dropY, autoPts);
   removeFloorItem(fi.el);
   lastDropTime = performance.now();
 }
 
 function updateCountdown() {
-  // 골든타임/카운트다운 중 타이머 숨김
-  if(goldenTime || goldenCountdownActive) {
+  // 골든타임/카운트다운/자동드롭OFF 중 타이머 숨김
+  if(goldenTime || goldenCountdownActive || missionEffects.noAutoDrop) {
     countdownTimer.classList.remove('active');
     return;
   }
@@ -1545,7 +1697,13 @@ function loop() {
 // ── HUD 업데이트 ────────────────────────────────────────
 function updateHUD(sc, danger) {
   const pct = Math.round(danger*100);
-  document.getElementById('countVal').textContent = sc;
+  const countValEl = document.getElementById('countVal');
+  if(countValEl.textContent !== String(sc)) {
+    countValEl.textContent = sc;
+    countValEl.classList.remove('score-pop');
+    void countValEl.offsetWidth;
+    countValEl.classList.add('score-pop');
+  }
   document.getElementById('levelVal').textContent = level >= LEVELS.length ? 'MAX' : level;
   document.getElementById('goalVal').textContent = currentGoal === Infinity ? '∞' : currentGoal;
   const de = document.getElementById('dangerVal');
@@ -1576,7 +1734,7 @@ function updateHUD(sc, danger) {
     // SVG 폴리곤이 위(0°)를 기본 방향으로 그려져 있음
     // tiltY>0 = 오른쪽 무거움 → 왼쪽을 가리켜야 → rotate(-90deg)
     // tiltX>0 = 아래쪽 무거움 → 위쪽을 가리켜야 → rotate(0deg)
-    const arrowAngle = Math.atan2(-tiltY, tiltX) * 180 / Math.PI;
+    const arrowAngle = Math.atan2(tiltY, -tiltX) * 180 / Math.PI;
     tiltArrowSvg.style.transform = `rotate(${arrowAngle}deg)`;
     // 위험도에 따라 색상 변경
     const arrowColor = danger < .4 ? '#40C870' : danger < .7 ? '#F4A535' : '#E84040';
@@ -1651,9 +1809,12 @@ function levelClear() {
       _lcInterval = null;
       lcOverlay.classList.remove('show');
       document.body.classList.remove('no-scroll');
-      // 다음 레벨 시작
+      // 다음 레벨 시작 (미션 효과 보존)
+      const savedMissionEffects = {...missionEffects};
       level++;
       applyLevel(level);
+      missionEffects = savedMissionEffects;
+      updateItemBtns();
       items = [];
       tiltX = 0; tiltY = 0; shakeTimer = 0;
       frozen=false; if(frozenTimer){clearTimeout(frozenTimer);frozenTimer=null;}
